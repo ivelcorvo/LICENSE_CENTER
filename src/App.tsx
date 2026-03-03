@@ -9,6 +9,7 @@ import {
 import RootLayout from './layouts/RootLayout';
 
 import Clients from './pages/Clients';
+import ClientDetails from './pages/ClientDetails';
 import Licenses from './pages/Licenses';
 import Dashboard from './pages/Dashboard';
 
@@ -22,7 +23,14 @@ export default function App() {
         { index: true, element: <Navigate to="/dashboard" replace /> },
         { path: "dashboard", element: <Dashboard /> },
         { path: "licenses", element: <Licenses /> },
-        { path: "clients", element: <Clients /> },
+        // { path: "clients", element: <Clients /> },
+        { 
+          path: "clients", 
+          children: [
+            { index: true, element: <Clients /> },      // Lista de grupos
+            { path: ":id", element: <ClientDetails /> } // Detalhes do grupo (CNPJs)
+          ]
+        },
         { path: "*", element: <Navigate to="/dashboard" replace /> },
       ],
     },    

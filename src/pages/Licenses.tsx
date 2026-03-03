@@ -1,7 +1,12 @@
-const Licenses = () => {
-  return (
-    <div>Licenses</div>
-  )
-}
+import { useEffect, useState } from "react";
+import { db } from "../lib/firebase_config";
 
-export default Licenses
+
+export default function Licenses() {
+
+  return (
+    <div>
+      LICENSES
+    </div>
+  );
+}
