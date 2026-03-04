@@ -4,6 +4,9 @@ import { useClientDetails } from "../hooks/useClientDetails";
 import { useCompanies } from "../hooks/useCompanies";
 
 import { LicenseModal } from "../components/LicenseModal";
+import { EditCompanyModal } from "../components/EditCompanyModal";
+
+import { type Company } from "../hooks/useCompanies";
 
 export default function ClientDetails() {
 
@@ -12,7 +15,7 @@ export default function ClientDetails() {
   const navigate = useNavigate();
 
   const { clientName, loading: loadingClient } = useClientDetails(id);
-  const { companies, loading: loadingCompanies, isSubmitting, addCompany } = useCompanies(id);
+  const { companies, loading: loadingCompanies, isSubmitting, addCompany, updateCompany } = useCompanies(id);
 
   // Estados para o formulário
   const [cnpj, setCnpj]                   = useState("");
@@ -43,13 +46,24 @@ export default function ClientDetails() {
   };
 
 
-  // MODAL
-  const [isModalOpen, setIsModalOpen]         = useState<boolean>(false);
-  const [selectedCompany, setSelectedCompany] = useState<{id: string, name: string} | null>(null);
-  const handleOpenModal = (id: string, name: string) => {
-    setSelectedCompany({ id, name });
-    setIsModalOpen(true);
-  }
+  // ===========================================================================
+  // MODAL | status licença
+    const [isModalOpen, setIsModalOpen]         = useState<boolean>(false);
+    const [selectedCompany, setSelectedCompany] = useState<{id: string, name: string} | null>(null);
+    const handleOpenModal = (id: string, name: string) => {
+      setSelectedCompany({ id, name });
+      setIsModalOpen(true);
+    }
+
+  // ===========================================================================
+  // MODAL | status licença
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [companyToEdit, setCompanyToEdit] = useState<Company | null>(null);
+    const handleOpenEditModal = (company: Company) => {
+      setCompanyToEdit(company);
+      setIsEditModalOpen(true);
+    };
+
 
   if (loadingClient) return <div className="p-8 text-zinc-500">Carregando dados do grupo...</div>;
 
@@ -154,12 +168,25 @@ export default function ClientDetails() {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">                     
-                    <button 
-                      onClick={() => handleOpenModal(company.id, company.corporateName)}
-                      className="text-emerald-500 hover:text-white text-xs font-bold uppercase tracking-wider cursor-pointer"
-                    >
-                      Licenças <i className="fa-solid fa-key ml-1"></i>
-                    </button>
+                    <div className="flex items-center gap-4 justify-end">
+                      {/* Botão de Licenças */}
+                      <button 
+                        onClick={() => handleOpenModal(company.id, company.corporateName)}
+                        className="text-emerald-500 hover:text-white text-xs font-bold uppercase tracking-wider cursor-pointer"
+                      >
+                        Licenças <i className="fa-solid fa-key ml-1"></i>
+                      </button>
+
+                      {/*  Botão de Editar */}
+                      <button 
+                        onClick={() => handleOpenEditModal(company)}
+                        className="text-zinc-500 hover:text-blue-400 transition-colors cursor-pointer"
+                        title="Editar Unidade"
+                      >
+                        <i className="fa-solid fa-pen-to-square"></i>
+                      </button>
+
+                    </div>
                   </td>
                 </tr>
               ))
@@ -168,6 +195,8 @@ export default function ClientDetails() {
         </table>
       </section>
 
+      {/* ========================================================================================================= */}
+      {/* MODAL | LICENÇA */}
       {selectedCompany && (
         <LicenseModal 
           isOpen={isModalOpen}
@@ -177,6 +206,15 @@ export default function ClientDetails() {
           companyName={selectedCompany.name}
         />
       )}
+
+      {/* ========================================================================================================= */}
+      {/* MODAL | editar empresas */}
+      <EditCompanyModal 
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        company={companyToEdit}
+        onUpdate={updateCompany} // Função que vem do useCompanies
+      />
 
     </div>
   );

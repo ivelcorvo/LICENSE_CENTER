@@ -6,7 +6,9 @@ import {
   query, 
   addDoc, 
   serverTimestamp,
-  orderBy
+  orderBy,
+  doc,
+  updateDoc
 } from 'firebase/firestore';
 
 export interface Company {
@@ -49,7 +51,8 @@ export function useCompanies(customerId: string | undefined) {
     return () => unsub();
   }, [customerId]);
 
-  // Função para adicionar uma nova empresa ao grupo
+  // =========================================================================================
+  // ADICIONA EMPRESA AO GRUPO
   const addCompany = async (companyData: Omit<Company, 'id' | 'status' | 'createdAt'>) => {
     if (!customerId) return;
     
@@ -69,11 +72,28 @@ export function useCompanies(customerId: string | undefined) {
     }
   };
 
+  // =========================================================================================
+  // EDITAR EMPRESA
+  const updateCompany = async (companyId: string, newData: Partial<Company>) => {
+   
+    if (!customerId) return;
+
+    const companyDocRef = doc(db, "customers", customerId, "companies", companyId);
+
+    try {
+      await updateDoc(companyDocRef, newData);
+    } catch (error) {
+      console.error("Erro ao atualizar empresa:", error);
+      throw error;
+    }
+  };
+
   return { 
     companies, 
     loading, 
     isSubmitting, 
-    addCompany 
+    addCompany,
+    updateCompany 
   };
 
 }
