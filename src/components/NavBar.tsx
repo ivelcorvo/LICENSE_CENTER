@@ -21,6 +21,7 @@ const NavBar = () => {
         <i className={`fa-solid ${isOpen ? "fa-chevron-left" : "fa-chevron-right"} text-[10px]`}></i>
       </button>
 
+      {/* ========================================================================================================= */}
       {/* Logo */}
       <div className={`p-6 overflow-hidden whitespace-nowrap ${!isOpen && "text-center"}`}>
         <h2 className="text-emerald-500 font-bold text-xl flex items-center gap-3">
@@ -29,6 +30,7 @@ const NavBar = () => {
         </h2>
       </div>
 
+      {/* ========================================================================================================= */}
       {/* Navegação */}
       <nav className="flex-1 px-4 py-2 overflow-hidden" aria-label="Navegação Principal">
         <ul className="space-y-2">

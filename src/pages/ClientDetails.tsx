@@ -3,6 +3,8 @@ import { useParams, useNavigate } from "react-router";
 import { useClientDetails } from "../hooks/useClientDetails";
 import { useCompanies } from "../hooks/useCompanies";
 
+import { LicenseModal } from "../components/LicenseModal";
+
 export default function ClientDetails() {
 
   const { id } = useParams();
@@ -39,6 +41,15 @@ export default function ClientDetails() {
       alert("Erro ao cadastrar unidade.");
     }
   };
+
+
+  // MODAL
+  const [isModalOpen, setIsModalOpen]         = useState<boolean>(false);
+  const [selectedCompany, setSelectedCompany] = useState<{id: string, name: string} | null>(null);
+  const handleOpenModal = (id: string, name: string) => {
+    setSelectedCompany({ id, name });
+    setIsModalOpen(true);
+  }
 
   if (loadingClient) return <div className="p-8 text-zinc-500">Carregando dados do grupo...</div>;
 
@@ -142,9 +153,11 @@ export default function ClientDetails() {
                       {company.status === 'active' ? 'Ativo' : 'Suspenso'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-right">
-                     {/* Aqui entrará o botão de Gerenciar Licença no futuro */}
-                    <button className="text-zinc-500 hover:text-white text-xs font-bold uppercase tracking-wider">
+                  <td className="px-6 py-4 text-right">                     
+                    <button 
+                      onClick={() => handleOpenModal(company.id, company.corporateName)}
+                      className="text-emerald-500 hover:text-white text-xs font-bold uppercase tracking-wider cursor-pointer"
+                    >
                       Licenças <i className="fa-solid fa-key ml-1"></i>
                     </button>
                   </td>
@@ -154,6 +167,16 @@ export default function ClientDetails() {
           </tbody>
         </table>
       </section>
+
+      {selectedCompany && (
+        <LicenseModal 
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          customerId={id!} 
+          companyId={selectedCompany.id}
+          companyName={selectedCompany.name}
+        />
+      )}
 
     </div>
   );

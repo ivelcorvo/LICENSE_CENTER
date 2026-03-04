@@ -3,17 +3,6 @@ import NavBar from "../components/NavBar";
 
 export default function RootLayout(){
   return(
-
-    // <>
-    //   <NavBar></NavBar>
-    //   <div className="bg-gray-950 text-gray-300 min-h-screen flex">
-    //     <main className="flex flex-col flex-1 justify-center items-center px-4 py-8">
-    //       <section>
-    //         <Outlet />
-    //       </section>
-    //     </main>
-    //   </div>  
-    // </>
     
    <div className="flex min-h-screen bg-zinc-950 text-zinc-300">      
       <NavBar />

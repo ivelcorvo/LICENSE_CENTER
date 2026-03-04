@@ -4,7 +4,7 @@ import { doc, getDoc } from 'firebase/firestore';
 
 export function useClientDetails(id: string | undefined) {
   const [clientName, setClientName] = useState("");
-  const [loading, setLoading]       = useState(true);
+  const [loading, setLoading]       = useState<Boolean>(true);
 
   useEffect(() => {
     async function getClient() {
@@ -33,6 +33,7 @@ export function useClientDetails(id: string | undefined) {
     }
 
     getClient();
+
   }, [id]);
 
   return { 

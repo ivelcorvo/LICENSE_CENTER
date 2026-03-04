@@ -22,8 +22,7 @@ export default function App() {
       children: [
         { index: true, element: <Navigate to="/dashboard" replace /> },
         { path: "dashboard", element: <Dashboard /> },
-        { path: "licenses", element: <Licenses /> },
-        // { path: "clients", element: <Clients /> },
+        { path: "licenses", element: <Licenses /> },        
         { 
           path: "clients", 
           children: [
