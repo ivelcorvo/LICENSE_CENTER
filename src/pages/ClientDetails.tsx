@@ -3,12 +3,20 @@ import { useParams, useNavigate } from "react-router";
 import { useClientDetails } from "../hooks/useClientDetails";
 import { useCompanies } from "../hooks/useCompanies";
 
-import { LicenseModal } from "../components/LicenseModal";
 import { EditCompanyModal } from "../components/EditCompanyModal";
 
 import { type Company } from "../hooks/useCompanies";
 
 export default function ClientDetails() {
+
+  const formatDate = (timestamp: any) => {
+    if (!timestamp) return "---";
+    
+    // O Firestore retorna um objeto com .toDate() ou podemos converter os segundos
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp.seconds * 1000);
+    
+    return new Intl.DateTimeFormat('pt-BR').format(date);
+  };
 
   const { id } = useParams();
 
@@ -44,16 +52,6 @@ export default function ClientDetails() {
       alert("Erro ao cadastrar unidade.");
     }
   };
-
-
-  // ===========================================================================
-  // MODAL | status licença
-    const [isModalOpen, setIsModalOpen]         = useState<boolean>(false);
-    const [selectedCompany, setSelectedCompany] = useState<{id: string, name: string} | null>(null);
-    const handleOpenModal = (id: string, name: string) => {
-      setSelectedCompany({ id, name });
-      setIsModalOpen(true);
-    }
 
   // ===========================================================================
   // MODAL | status licença
@@ -142,7 +140,8 @@ export default function ClientDetails() {
           <thead className="bg-zinc-950 text-zinc-500 text-[10px] uppercase tracking-widest border-b border-zinc-800">
             <tr>
               <th className="px-6 py-4">Empresa / CNPJ</th>
-              <th className="px-6 py-4">Contato</th>
+              <th className="px-6 py-4">Chave da Licença</th>
+              <th className="px-6 py-4">Expiração (Teste)</th>
               <th className="px-6 py-4">Status</th>
               <th className="px-6 py-4 text-right">Ações</th>
             </tr>
@@ -161,23 +160,41 @@ export default function ClientDetails() {
                       <span className="text-xs text-zinc-500 font-mono">{company.cnpj}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-sm text-zinc-400">{company.email}</td>
+                  
+                  {/* Nova Coluna: Chave */}
+                  <td className="px-6 py-4">
+                    <span className="bg-zinc-950 border border-zinc-800 px-3 py-1 rounded text-xs font-mono text-emerald-400">
+                      {company.licenseKey || 'SEM CHAVE'}
+                    </span>
+                  </td>
+
+                  {/* Nova Coluna: Data de Expiração */}
+                  <td className="px-6 py-4 text-sm text-zinc-400">
+                    {formatDate(company.expiresAt)}
+                  </td>
+
                   <td className="px-6 py-4">
                     <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${company.status === 'active' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
                       {company.status === 'active' ? 'Ativo' : 'Suspenso'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-right">                     
+                  
+                  <td className="px-6 py-4 text-right">                    
                     <div className="flex items-center gap-4 justify-end">
-                      {/* Botão de Licenças */}
-                      <button 
-                        onClick={() => handleOpenModal(company.id, company.corporateName)}
-                        className="text-emerald-500 hover:text-white text-xs font-bold uppercase tracking-wider cursor-pointer"
-                      >
-                        Licenças <i className="fa-solid fa-key ml-1"></i>
-                      </button>
+                      {/* Botão de Copiar Chave */}
+                      {company.licenseKey && (
+                        <button 
+                          onClick={() => {
+                            navigator.clipboard.writeText(company.licenseKey!);
+                            alert("Chave copiada!");
+                          }}
+                          className="text-zinc-500 hover:text-emerald-500 transition-colors cursor-pointer"
+                          title="Copiar Chave"
+                        >
+                          <i className="fa-solid fa-copy"></i>
+                        </button>
+                      )}
 
-                      {/*  Botão de Editar */}
                       <button 
                         onClick={() => handleOpenEditModal(company)}
                         className="text-zinc-500 hover:text-blue-400 transition-colors cursor-pointer"
@@ -185,7 +202,6 @@ export default function ClientDetails() {
                       >
                         <i className="fa-solid fa-pen-to-square"></i>
                       </button>
-
                     </div>
                   </td>
                 </tr>
@@ -195,17 +211,6 @@ export default function ClientDetails() {
         </table>
       </section>
 
-      {/* ========================================================================================================= */}
-      {/* MODAL | LICENÇA */}
-      {selectedCompany && (
-        <LicenseModal 
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          customerId={id!} 
-          companyId={selectedCompany.id}
-          companyName={selectedCompany.name}
-        />
-      )}
 
       {/* ========================================================================================================= */}
       {/* MODAL | editar empresas */}

@@ -1,71 +1,92 @@
 import { useState, useEffect } from 'react';
 import { db } from '../lib/firebase_config';
-import { collection, onSnapshot, collectionGroup, query, where } from 'firebase/firestore';
+import { 
+  collection, 
+  onSnapshot, 
+  collectionGroup, 
+  query 
+} from 'firebase/firestore';
 
+/**
+ * HOOK: useDashboardStats
+ * Objetivo: Centralizar os contadores globais do sistema.
+ * Lógica: Pega todas as empresas e filtra por data/status no cliente para economizar leituras.
+ */
 export function useDashboardStats() {
-
   const [stats, setStats] = useState({
     totalGroups: 0,
     totalCompanies: 0,
-    activeLicenses: 0
+    activeLicenses: 0,
+    expired: 0,        // Já venceram
+    expiring24h: 0,    // Vencem hoje ou amanhã
+    expiringWeek: 0    // Vencem nos próximos 7 dias
   });
-
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 1. Conta Grupos
+    // 0. verificação de expiração das lisenças
+    const now = new Date();
+    const tomorrow = new Date();
+    tomorrow.setDate(now.getDate() + 1);
+
+    const nextWeek = new Date();
+    nextWeek.setDate(now.getDate() + 7);
+
+    now.setHours(0,0,0,0); // Zerar as horas para comparações precisas
+    tomorrow.setHours(23,59,59,999);
+    nextWeek.setHours(23,59,59,999);
+
+    // 1. Contador de Grupos
     const unsubGroups = onSnapshot(collection(db, "customers"), (snap) => {
       const groupCount = snap.size;
-      
-      // 2. Conta Empresas e Licenças usando collectionGroup
-      // Nota: Para usar collectionGroup você precisará criar índices no Console do Firebase se houver filtros.
-      const qCompanies = query(collectionGroup(db, "companies"));
-      const qLicenses  = query(collectionGroup(db, "licenses"), where("status", "==", "active"));
 
-      const unsubComp = onSnapshot(qCompanies, (compSnap) => {
-        const compCount = compSnap.size;
-        
-        const unsubLic = onSnapshot(qLicenses, (licSnap) => {
-          setStats({
-            totalGroups: groupCount,
-            totalCompanies: compCount,
-            activeLicenses: licSnap.size
-          });
-          setLoading(false);
+      // 2. Busca Global de Unidades (Sem filtro de status para poder contar tudo)
+      const qAllCompanies = query(collectionGroup(db, "companies"));
+      
+      const unsubAllComp = onSnapshot(qAllCompanies, (compSnap) => {
+        // Mapeamos os dados uma única vez para evitar repetição no processamento
+        const allDocs = compSnap.docs.map(d => ({
+          status: d.data().status,
+          expDate: d.data().expiresAt?.toDate()
+        }));
+
+        setStats({
+          totalGroups: groupCount,
+          totalCompanies: compSnap.size,
+          // Filtros realizados no JavaScript (Memória)
+          activeLicenses: allDocs.filter(d => d.status === 'active').length,
+          
+          expired: allDocs.filter(d => 
+            d.status === 'suspended' && d.expDate < now
+          ).length,
+          
+          expiring24h: allDocs.filter(d => 
+            d.status === 'active' && d.expDate >= now && d.expDate <= tomorrow
+          ).length,
+          
+          // expiringWeek: allDocs.filter(d => 
+          //   d.status === 'active' && d.expDate > tomorrow && d.expDate <= nextWeek
+          // ).length
+          expiringWeek: allDocs.filter(d => 
+            d.expDate >= now && d.expDate <= nextWeek
+          ).length
         });
-        return () => unsubLic();
+
+        setLoading(false);
       });
-      return () => unsubComp();
+
+      return () => unsubAllComp();
     });
 
     return () => unsubGroups();
   }, []);
 
-  return { 
-    stats, 
-    loading 
-  };
-
+  return { stats, loading };
 }
 
-
-/**
- * COMO LIBERAR BUSCAS GLOBAIS (COLLECTION GROUP):
- * * 1. O QUE É COLLECTION GROUP?
- * É quando o código busca em TODAS as subcoleções com o mesmo nome (ex: 'licenses') 
- * de todos os clientes ao mesmo tempo, ignorando quem é o "pai" (customer) delas.
- * * 2. POR QUE PRECISA DE CONFIGURAÇÃO?
- * O Firebase bloqueia filtros (where) em buscas globais por padrão. Você precisa 
- * autorizar que o campo (ex: 'status') seja indexado para o sistema inteiro.
- * * 3. PASSO A PASSO REAL NO CONSOLE:
- * - Vá em Firestore -> Índices -> Aba 'Automático'.
- * - Clique no botão 'Adicionar isenção'.
- * - Código da coleção: Digite 'licenses'.
- * - Caminho do campo: Digite 'status'.
- * - Escopo da consulta: Marque apenas 'Grupo de coleções'.
- * - Clique em Avançar e ative as chaves 'Crescente' e 'Decrescente'.
- * - Clique em Salvar e aguarde o status ficar 'Ativo'.
- * * 4. CONCLUSÃO:
- * Mesmo que o link de erro te leve para o console, você deve conferir e preencher 
- * esses campos manualmente para garantir que a isenção seja criada no lugar certo.
+/** * Isenção de Índice para a coleção 'companies'
+ * 1. Acesse o Console do Firebase -> Firestore Database -> Índices -> Automático.
+ * 2. Adicionar isenção: ID da coleção: 'companies' | Campo: 'status'.
+ * 3. Escopo: Grupo de coleções.
+ * 4. Ative Crescente/Decrescente e Salve.
  */
