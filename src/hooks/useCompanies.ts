@@ -19,6 +19,7 @@ export interface Company {
   status: 'active' | 'suspended';
   licenseKey?: string; 
   expiresAt?: any;
+  customerId?: string;
   createdAt: any;
 }
 
