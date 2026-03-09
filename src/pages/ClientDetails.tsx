@@ -141,7 +141,7 @@ export default function ClientDetails() {
             <tr>
               <th className="px-6 py-4">Empresa / CNPJ</th>
               <th className="px-6 py-4">Chave da Licença</th>
-              <th className="px-6 py-4">Expiração (Teste)</th>
+              <th className="px-6 py-4">Expiração</th>
               <th className="px-6 py-4">Status</th>
               <th className="px-6 py-4 text-right">Ações</th>
             </tr>
@@ -161,14 +161,12 @@ export default function ClientDetails() {
                     </div>
                   </td>
                   
-                  {/* Nova Coluna: Chave */}
                   <td className="px-6 py-4">
                     <span className="bg-zinc-950 border border-zinc-800 px-3 py-1 rounded text-xs font-mono text-emerald-400">
                       {company.licenseKey || 'SEM CHAVE'}
                     </span>
                   </td>
 
-                  {/* Nova Coluna: Data de Expiração */}
                   <td className="px-6 py-4 text-sm text-zinc-400">
                     {formatDate(company.expiresAt)}
                   </td>
@@ -204,6 +202,7 @@ export default function ClientDetails() {
                       </button>
                     </div>
                   </td>
+                  
                 </tr>
               ))
             )}

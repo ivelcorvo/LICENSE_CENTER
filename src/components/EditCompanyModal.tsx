@@ -30,7 +30,13 @@ export function EditCompanyModal({ isOpen, onClose, company, onUpdate }: EditCom
       let dateString = "";
       if (company.expiresAt) {
         const date = company.expiresAt.toDate ? company.expiresAt.toDate() : new Date(company.expiresAt.seconds * 1000);
-        dateString = date.toISOString().split('T')[0];
+        
+        // Extrai os números separadamente para evitar o erro de fuso horário
+        const year  = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0'); // Meses começam em 0 no JS
+        const day   = String(date.getDate()).padStart(2, '0');
+        
+        dateString = `${year}-${month}-${day}`; // Formato correto: YYYY-MM-DD
       }
 
       setFormData({
@@ -48,14 +54,17 @@ export function EditCompanyModal({ isOpen, onClose, company, onUpdate }: EditCom
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!company) return;
+    if (!company) return;    
 
-    const selectedDate = new Date(formData.expiresAt);
+    // Criando a data manualmente (ano, mês-1, dia)
+    const [year, month, day] = formData.expiresAt.split('-').map(Number);
+    const dateToSave = new Date(year, month - 1, day);
+
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Zera as horas para comparar apenas os dias
 
     // REGRA: Não pode ativar se a data for menor ou igual a hoje
-    if (formData.status === 'active' && selectedDate <= today) {
+    if (formData.status === 'active' && dateToSave <= today) {
       alert("Para ativar a unidade, a data de expiração deve ser maior que a data atual.");
       return;
     }
@@ -69,8 +78,7 @@ export function EditCompanyModal({ isOpen, onClose, company, onUpdate }: EditCom
         email: formData.email,
         licenseKey: formData.licenseKey,
         status: formData.status as "active" | "suspended",
-        // Converte string "2026-03-06" para objeto Date
-        expiresAt: formData.expiresAt ? new Date(formData.expiresAt) : null 
+        expiresAt: dateToSave 
       };
       await onUpdate(company.id, dataToUpdate);
       onClose();

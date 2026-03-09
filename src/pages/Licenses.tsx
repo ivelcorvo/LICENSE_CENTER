@@ -23,15 +23,19 @@ export default function LicensesPage() {
       return;
     }
 
+    // cria data local a partir da string "YYYY-MM-DD"
+    const [year, month, day] = globalDate.split('-').map(Number);
+    const dateToSave = new Date(year, month - 1, day);
+    
     const statusText    = globalStatus === 'active' ? 'ATIVAR' : 'SUSPENDER';
-    const dataFormatada = new Date(globalDate).toLocaleDateString('pt-BR');
+    const dataFormatada = dateToSave.toLocaleDateString('pt-BR');
     
     const mensagem = `⚠️ ATENÇÃO: Você está prestes a ${statusText} TODAS as unidades do sistema com vencimento em ${dataFormatada}.\n\nEsta ação afetará todos os clientes cadastrados. Deseja continuar?`;
 
     if (window.confirm(mensagem)) {
       updateGlobal({ 
         status: globalStatus, 
-        expiresAt: new Date(globalDate) 
+        expiresAt: dateToSave 
       });
     }
   };
@@ -179,10 +183,22 @@ export default function LicensesPage() {
                         <input 
                           type="date"
                           className="bg-transparent text-xs outline-none border-none p-0 w-28 text-zinc-400 font-medium color-scheme-dark"
-                          value={company.expiresAt?.seconds ? new Date(company.expiresAt.seconds * 1000).toISOString().split('T')[0] : ''}
+                          // RESOLVE O "DIA A MAIS": Extrai a data local para o input
+                          value={(() => {
+                            if (!company.expiresAt) return '';
+                            const d = company.expiresAt.toDate ? company.expiresAt.toDate() : new Date(company.expiresAt.seconds * 1000);
+                            const y = d.getFullYear();
+                            const m = String(d.getMonth() + 1).padStart(2, '0');
+                            const day = String(d.getDate()).padStart(2, '0');
+                            return `${y}-${m}-${day}`;
+                          })()}
                           onChange={(e) => {
-                            if (!e.target.value) return;
-                            updateSingle(company, { expiresAt: new Date(e.target.value) });
+                            const val = e.target.value;
+                            if (!val) return;
+                            
+                            // CONVERTE PARA LOCAL: Evita salvar como 21:00 do dia anterior
+                            const [y, m, d] = val.split('-').map(Number);
+                            updateSingle(company, { expiresAt: new Date(y, m - 1, d) });
                           }}
                         />
                       </div>
