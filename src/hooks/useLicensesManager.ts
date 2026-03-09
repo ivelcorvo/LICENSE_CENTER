@@ -31,7 +31,9 @@ export function useLicensesManager() {
     const unsubCustomers = onSnapshot(collection(db, "customers"), 
       (custSnap) => {
         const customerMap: Record<string, string> = {};
-        custSnap.forEach(d => { customerMap[d.id] = d.data().nickname; });
+        custSnap.forEach(d => {
+          customerMap[d.id] = d.data().nickname;
+        });
 
         // Listener Global de Unidades
         const qCompanies = query(collectionGroup(db, "companies"));
@@ -86,11 +88,46 @@ export function useLicensesManager() {
     if (targets.length === 0) return;
     
     setIsUpdating(true);
-    setError(null);
+    setError(null);    
+
+    // Preparar a data de hoje para comparação (zerando as horas)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     const batch = writeBatch(db);
 
     try {
+
+      // #### NÃO PERMITE SELECIONAR UMA DATA JA PASSADA ####
+      if (data.expiresAt) {
+        const newExpiration = new Date(data.expiresAt);
+        newExpiration.setHours(0, 0, 0, 0);
+        
+        if (newExpiration < today) {
+          throw new Error("A data de expiração não pode ser menor que o dia atual.");
+        }
+      }
+
       targets.forEach(comp => {
+
+        // #### DATA DE EXPIRÇÃO ####
+        // Se estamos enviando uma nova no 'data', usamos ela. 
+        // Caso contrário, usamos a que a empresa já tem.
+        const rawDate = data.expiresAt || comp.expiresAt;
+
+        // Converter para objeto Date caso venha do Firestore (Timestamp)
+        const expirationDate = rawDate?.toDate ? rawDate.toDate() : new Date(rawDate);
+        expirationDate.setHours(0, 0, 0, 0);
+
+        // #### REGRA ####
+        // Se o status final for 'active' (seja vindo no 'data' ou já existente no 'comp')
+        // e a data for hoje ou passada, bloqueamos.
+        const finalStatus = data.status || comp.status;
+
+        if (finalStatus === 'active' && expirationDate < today) {
+          throw new Error(`A unidade "${comp.corporateName}" está com a licença vencida e não pode ser ativada.`);
+        }
+
         if (!comp.customerId || !comp.id) throw new Error(`Dados inválidos para a unidade: ${comp.corporateName}`);
         
         const docRef = doc(db, `customers/${comp.customerId}/companies/${comp.id}`);

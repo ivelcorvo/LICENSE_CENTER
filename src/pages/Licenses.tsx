@@ -13,7 +13,28 @@ export default function LicensesPage() {
   } = useLicensesManager();
 
   const [globalStatus, setGlobalStatus] = useState<'active' | 'suspended'>('active');
-  const [globalDate, setGlobalDate] = useState('');
+  const [globalDate, setGlobalDate]     = useState('');
+
+  // #### CONFIRMAÇÃO PARA ALTERAÇÃO GLOBAL ####
+  const handleGlobalUpdate = () => {
+
+    if (!globalDate) {
+      alert("ERRO: Para uma atualização global, você deve selecionar uma data de expiração obrigatória.");
+      return;
+    }
+
+    const statusText    = globalStatus === 'active' ? 'ATIVAR' : 'SUSPENDER';
+    const dataFormatada = new Date(globalDate).toLocaleDateString('pt-BR');
+    
+    const mensagem = `⚠️ ATENÇÃO: Você está prestes a ${statusText} TODAS as unidades do sistema com vencimento em ${dataFormatada}.\n\nEsta ação afetará todos os clientes cadastrados. Deseja continuar?`;
+
+    if (window.confirm(mensagem)) {
+      updateGlobal({ 
+        status: globalStatus, 
+        expiresAt: new Date(globalDate) 
+      });
+    }
+  };
 
   if (loading) return (
     <div className="p-8 text-zinc-500 flex items-center gap-3">
@@ -34,10 +55,11 @@ export default function LicensesPage() {
         <p className="text-zinc-500 text-sm mt-1 uppercase font-mono">Controle global e por grupos de unidades</p>
       </div>
 
-      {/* --- NÍVEL 1: COMANDO MESTRE --- */}
+      {/* ================================================================================================================== */}
+      {/* ALTERAR | TODOS */}
       <section className="bg-zinc-900/40 border border-zinc-800 p-6 rounded-2xl relative overflow-hidden">
         <div className="absolute top-0 left-0 w-1 h-full bg-emerald-600"></div>
-        <h2 className="text-[10px] font-bold text-emerald-500 uppercase tracking-[0.2em] mb-6">Comando Mestre</h2>
+        <h2 className="text-[10px] font-bold text-emerald-500 uppercase tracking-[0.2em] mb-6">Alterar Todos</h2>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
           <div className="space-y-2">
@@ -64,7 +86,8 @@ export default function LicensesPage() {
 
           <button 
             disabled={isUpdating}
-            onClick={() => updateGlobal({ status: globalStatus, expiresAt: globalDate ? new Date(globalDate) : null })}
+            // onClick={() => updateGlobal({ status: globalStatus, expiresAt: globalDate ? new Date(globalDate) : null })}
+            onClick={handleGlobalUpdate}
             className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition-all cursor-pointer shadow-lg shadow-emerald-900/10 flex items-center justify-center gap-2"
           >
             {isUpdating ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-bolt"></i>}
@@ -79,11 +102,13 @@ export default function LicensesPage() {
         </div>
       )}
 
-      {/* --- NÍVEL 2: GRUPOS --- */}
+      {/* ================================================================================================================== */}
+      {/* ALTERAR | GRUPO */}
       <div className="space-y-6">
         {Object.entries(groupedData).map(([customerId, group]) => (
           <div key={customerId} className="bg-zinc-900/40 border border-zinc-800 rounded-2xl overflow-hidden">
             
+            {/* ================================================================================================================== */}
             {/* Header do Grupo */}
             <div className="p-5 bg-zinc-950 border-b border-zinc-800 flex justify-between items-center">
               <div className="flex items-center gap-4">
@@ -114,13 +139,15 @@ export default function LicensesPage() {
               </div>
             </div>
 
-            {/* --- NÍVEL 3: LISTA DE UNIDADES --- */}
+            {/* ================================================================================================================== */}
+            {/* ALTERAR | UNIDADE */}
             <div className="divide-y divide-zinc-800/50">
               {group.companies.map((company) => (
                 <div key={company.id} className="p-5 flex items-center justify-between hover:bg-zinc-800/20 transition-colors">
                   <div className="flex items-center gap-4">
-                     {/* Bolinha de Status: Verde para Ativo, Vermelha para Suspenso */}
+
                      <div className={`w-2.5 h-2.5 rounded-full ${company.status === 'active' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]'}`} />
+
                      <div>
                         <p className="text-zinc-200 font-semibold">{company.corporateName}</p>
                         <p className="text-xs text-zinc-500 font-mono">{company.cnpj}</p>
@@ -128,7 +155,9 @@ export default function LicensesPage() {
                   </div>
 
                   <div className="flex items-center gap-8">
-                    {/* Seletor de Status Individual */}
+
+                    {/* ###################################################################################### */}
+                    {/*  Seletor de Status Individual */}
                     <div className="flex flex-col gap-1">
                       <label className="text-[10px] font-bold text-zinc-600 uppercase ml-1">Status</label>
                       <select 
@@ -141,6 +170,7 @@ export default function LicensesPage() {
                       </select>
                     </div>
 
+                    {/* ###################################################################################### */}
                     {/* Expiração Individual */}
                     <div className="flex flex-col gap-1">
                       <label className="text-[10px] font-bold text-rose-400 uppercase ml-1 tracking-wider">Expiração</label>
@@ -149,18 +179,21 @@ export default function LicensesPage() {
                         <input 
                           type="date"
                           className="bg-transparent text-xs outline-none border-none p-0 w-28 text-zinc-400 font-medium color-scheme-dark"
-                          defaultValue={company.expiresAt?.seconds ? new Date(company.expiresAt.seconds * 1000).toISOString().split('T')[0] : ''}
-                          onBlur={(e) => {
+                          value={company.expiresAt?.seconds ? new Date(company.expiresAt.seconds * 1000).toISOString().split('T')[0] : ''}
+                          onChange={(e) => {
                             if (!e.target.value) return;
                             updateSingle(company, { expiresAt: new Date(e.target.value) });
                           }}
                         />
                       </div>
                     </div>
+
                   </div>
+
                 </div>
               ))}
             </div>
+
           </div>
         ))}
       </div>
