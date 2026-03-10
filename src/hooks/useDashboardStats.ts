@@ -11,82 +11,85 @@ import {
  * HOOK: useDashboardStats
  * Objetivo: Centralizar os contadores globais do sistema.
  * Lógica: Pega todas as empresas e filtra por data/status no cliente para economizar leituras.
- */
-export function useDashboardStats() {
-  const [stats, setStats] = useState({
-    totalGroups: 0,
-    totalCompanies: 0,
-    activeLicenses: 0,
-    expired: 0,        // Já venceram
-    expiring24h: 0,    // Vencem hoje ou amanhã
-    expiringWeek: 0    // Vencem nos próximos 7 dias
-  });
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // 0. verificação de expiração das lisenças
-    const now = new Date();
-    const tomorrow = new Date();
-    tomorrow.setDate(now.getDate() + 1);
-
-    const nextWeek = new Date();
-    nextWeek.setDate(now.getDate() + 7);
-
-    now.setHours(0,0,0,0); // Zerar as horas para comparações precisas
-    tomorrow.setHours(23,59,59,999);
-    nextWeek.setHours(23,59,59,999);
-
-    // 1. Contador de Grupos
-    const unsubGroups = onSnapshot(collection(db, "customers"), (snap) => {
-      const groupCount = snap.size;
-
-      // 2. Busca Global de Unidades (Sem filtro de status para poder contar tudo)
-      const qAllCompanies = query(collectionGroup(db, "companies"));
-      
-      const unsubAllComp = onSnapshot(qAllCompanies, (compSnap) => {
-        // Mapeamos os dados uma única vez para evitar repetição no processamento
-        const allDocs = compSnap.docs.map(d => ({
-          status: d.data().status,
-          expDate: d.data().expiresAt?.toDate()
-        }));
-
-        setStats({
-          totalGroups: groupCount,
-          totalCompanies: compSnap.size,
-          // Filtros realizados no JavaScript (Memória)
-          activeLicenses: allDocs.filter(d => d.status === 'active').length,
-          
-          expired: allDocs.filter(d => 
-            d.status === 'suspended' && d.expDate < now
-          ).length,
-          
-          expiring24h: allDocs.filter(d => 
-            d.status === 'active' && d.expDate >= now && d.expDate <= tomorrow
-          ).length,
-          
-          // expiringWeek: allDocs.filter(d => 
-          //   d.status === 'active' && d.expDate > tomorrow && d.expDate <= nextWeek
-          // ).length
-          expiringWeek: allDocs.filter(d => 
-            d.expDate >= now && d.expDate <= nextWeek
-          ).length
-        });
-
-        setLoading(false);
-      });
-
-      return () => unsubAllComp();
-    });
-
-    return () => unsubGroups();
-  }, []);
-
-  return { stats, loading };
-}
-
-/** * Isenção de Índice para a coleção 'companies'
+ * * NOTA SOBRE ÍNDICES:
  * 1. Acesse o Console do Firebase -> Firestore Database -> Índices -> Automático.
  * 2. Adicionar isenção: ID da coleção: 'companies' | Campo: 'status'.
  * 3. Escopo: Grupo de coleções.
  * 4. Ative Crescente/Decrescente e Salve.
  */
+
+export function useDashboardStats() {
+  const [stats, setStats] = useState({
+    totalGroups: 0,
+    totalCompanies: 0,
+    activeLicenses: 0,
+    expired: 0,
+    expiring24h: 0,
+    expiringWeek: 0
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Definição precisa das janelas de tempo (Local 00:00:00)
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+
+    const tomorrowEnd = new Date(now);
+    tomorrowEnd.setDate(now.getDate() + 1);
+    tomorrowEnd.setHours(23, 59, 59, 999);
+
+    const nextWeekEnd = new Date(now);
+    nextWeekEnd.setDate(now.getDate() + 7);
+    nextWeekEnd.setHours(23, 59, 59, 999);
+
+    // #### Listener | Grupos ####
+    const unsubGroups = onSnapshot(collection(db, "customers"), (snap) => {
+      const groupCount = snap.size;
+      setStats(prev => ({ ...prev, totalGroups: groupCount }));
+    });
+
+    // #### Listener | Unidades (Collection Group) ####
+    const qAllCompanies = query(collectionGroup(db, "companies"));
+    const unsubAllComp = onSnapshot(qAllCompanies, (compSnap) => {
+      const allDocs = compSnap.docs.map(d => ({
+        status: d.data().status,
+        expDate: d.data().expiresAt?.toDate() // Firebase já traz como Timestamp
+      }));
+
+      // Filtros em memória (mais rápido que múltiplas queries)
+      setStats(prev => ({
+        ...prev,
+        totalCompanies: compSnap.size,
+        activeLicenses: allDocs.filter(d => d.status === 'active').length,
+        
+        // Unidades que já estão suspensas por data retroativa
+        expired: allDocs.filter(d => 
+          d.status === 'suspended' && d.expDate < now
+        ).length,
+        
+        // Ativas que vencem hoje ou amanhã
+        expiring24h: allDocs.filter(d => 
+          d.status === 'active' && d.expDate >= now && d.expDate <= tomorrowEnd
+        ).length,
+        
+        // Ativas que vencem do terceiro dia até o sétimo (Exclusividade)
+        expiringWeek: allDocs.filter(d => 
+          d.status === 'active' && d.expDate > tomorrowEnd && d.expDate <= nextWeekEnd
+        ).length
+      }));
+      setLoading(false);
+    });
+
+    // Limpeza correta dos dois ouvintes
+    return () => {
+      unsubGroups();
+      unsubAllComp();
+    };
+  }, []);
+
+  return { 
+    stats, 
+    loading 
+  };
+
+}

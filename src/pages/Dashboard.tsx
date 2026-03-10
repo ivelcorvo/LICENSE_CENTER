@@ -65,7 +65,11 @@ export default function Dashboard() {
           
           {/* ========================================================================================================= */}
           {/* Card: Já Expiradas */}
-          <div className={`p-6 rounded-2xl border transition-all ${stats.expired > 0 ? 'bg-rose-500/5 border-rose-500/20 text-rose-500' : 'bg-zinc-900/20 border-zinc-800 opacity-40'}`}>
+          <div className={`p-6 rounded-2xl border transition-all ${
+            stats.expired > 0 
+              ? 'bg-rose-500/5 border-rose-500/20 text-rose-500' 
+              : 'bg-zinc-900/20 border-zinc-800 opacity-40'
+          }`}>
             <div className="flex items-center gap-3 mb-2">
               <i className="fa-solid fa-skull-crossbones"></i>
               <span className="text-[10px] font-bold uppercase tracking-widest">Expiradas </span>
@@ -76,7 +80,11 @@ export default function Dashboard() {
 
           {/* ========================================================================================================= */}
           {/* Card: Vencem em 24h */}
-          <div className={`p-6 rounded-2xl border transition-all ${stats.expiring24h > 0 ? 'bg-orange-500/5 border-orange-500/20 text-orange-500' : 'bg-zinc-900/20 border-zinc-800 opacity-40'}`}>
+          <div className={`p-6 rounded-2xl border transition-all ${
+            stats.expiring24h > 0 
+              ? 'bg-orange-500/5 border-orange-500/20 text-orange-500' 
+              : 'bg-zinc-900/20 border-zinc-800 opacity-40'
+          }`}>
             <div className="flex items-center gap-3 mb-2">
               <i className="fa-solid fa-hourglass-half"></i>
               <span className="text-[10px] font-bold uppercase tracking-widest">Vencem em 24h</span>
@@ -87,7 +95,11 @@ export default function Dashboard() {
 
           {/* ========================================================================================================= */}
           {/* Card: Vencem na semana */}
-          <div className={`p-6 rounded-2xl border transition-all ${stats.expiringWeek > 0 ? 'bg-amber-500/5 border-amber-500/20 text-amber-500' : 'bg-zinc-900/20 border-zinc-800 opacity-40'}`}>
+          <div className={`p-6 rounded-2xl border transition-all ${
+            stats.expiringWeek > 0 
+              ? 'bg-amber-500/5 border-amber-500/20 text-amber-500' 
+              : 'bg-zinc-900/20 border-zinc-800 opacity-40'
+          }`}>
             <div className="flex items-center gap-3 mb-2">
               <i className="fa-solid fa-calendar-day"></i>
               <span className="text-[10px] font-bold uppercase tracking-widest">Vencem na semana</span>
