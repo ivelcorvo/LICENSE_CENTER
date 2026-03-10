@@ -85,6 +85,7 @@ export function useCompanies(customerId: string | undefined) {
       // Cálculo de expiração: Agora + 24 horas (1 dia) |  APENAS PARA TESTE
       const expirationDate = new Date();
       expirationDate.setDate(expirationDate.getDate() + 1);
+      expirationDate.setHours(0, 0, 0, 0);
 
       const companiesRef = collection(db, "customers", customerId, "companies");
       await addDoc(companiesRef, {
