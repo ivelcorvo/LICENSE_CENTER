@@ -12,6 +12,7 @@ import Clients from './pages/Clients';
 import ClientDetails from './pages/ClientDetails';
 import Licenses from './pages/Licenses';
 import Dashboard from './pages/Dashboard';
+import Seed from './pages/Seed';
 
 export default function App() {
 
@@ -22,14 +23,13 @@ export default function App() {
       children: [
         { index: true, element: <Navigate to="/dashboard" replace /> },
         { path: "dashboard", element: <Dashboard /> },
-        { path: "licenses", element: <Licenses /> },        
-        { 
-          path: "clients", 
-          children: [
-            { index: true, element: <Clients /> },      // Lista de grupos
-            { path: ":id", element: <ClientDetails /> } // Detalhes do grupo (CNPJs)
+        { path: "licenses", element: <Licenses /> },
+        { path: "clients", children: [
+            { index: true, element: <Clients /> },
+            { path: ":id", element: <ClientDetails /> }
           ]
         },
+        { path: "seed", element: <Seed /> }, // apenas para renovar o banco com dados simulados
         { path: "*", element: <Navigate to="/dashboard" replace /> },
       ],
     },    

@@ -5,6 +5,7 @@ const menuItems = [
   { name: "Dashboard", path: "/dashboard", icon: "fa-solid fa-chart-line" },
   { name: "Licenças", path: "/licenses", icon: "fa-solid fa-key" },
   { name: "Clientes", path: "/clients", icon: "fa-solid fa-users" },
+  { name: "Seed", path: "/seed", icon: "fa-solid fa-flask" }, // gerar dados simulados no banco 
 ];
 
 const NavBar = () => {
