@@ -1,4 +1,4 @@
-# Documentação Técnica
+# LICENSE.sys — Documentação Técnica
 
 ---
 
@@ -88,6 +88,7 @@ Firebase (Firestore)
 | `/clients` | `Clients` | Listagem e criação de Grupos/Clientes |
 | `/clients/:id` | `ClientDetails` | Gerenciamento de CNPJs de um grupo específico |
 | `/licenses` | `Licenses` | Gestão global de licenças por grupo e unidade |
+| `/seed` | `Seed` | Ferramenta de dados simulados — rota comentada por padrão |
 | `*` | — | Qualquer rota inválida redireciona para `/dashboard` |
 
 ---
@@ -451,3 +452,49 @@ Ao cadastrar uma nova unidade, uma chave é gerada automaticamente no formato `X
 ### Datas e Fuso Horário
 
 Todas as datas são criadas manualmente via `new Date(year, month - 1, day)` para evitar o deslocamento de fuso horário que ocorre ao usar `new Date("YYYY-MM-DD")` diretamente (que interpreta a string como UTC e pode resultar no dia anterior no horário local).
+
+---
+
+## 8. Seed de Dados
+
+O projeto possui uma ferramenta para limpar e repovoar o banco com dados simulados. Útil para demonstrações e testes.
+
+### Como usar
+
+1. Em `src/App.tsx`, descomente a rota e o import:
+```tsx
+import Seed from './pages/Seed';
+// ...
+{ path: "seed", element: <Seed /> },
+```
+
+2. Em `src/components/NavBar.tsx`, descomente o item do menu:
+```tsx
+{ name: "Seed", path: "/seed", icon: "fa-solid fa-flask" },
+```
+
+3. Reinicie o servidor, acesse `/seed` e clique em **Limpar e Repovoar Banco**.
+
+4. Após o uso, comente novamente a rota e o item do menu.
+
+> ⚠️ O Seed **apaga todos os dados existentes** antes de recriar. Nunca deixar a rota ativa em produção.
+
+### Dados Simulados
+
+Os dados são gerados relativos à data atual, garantindo que os alertas do Dashboard sempre façam sentido.
+
+| Grupo | Unidade | Status | Vencimento |
+|---|---|---|---|
+| Grupo Oliveira | Oliveira Combustíveis Ltda | Ativo | +75 dias |
+| Grupo Oliveira | Oliveira Transportes S.A. | Ativo | +3 dias |
+| Grupo Oliveira | Oliveira Logística ME | Suspenso | -15 dias (vencida) |
+| Grupo Oliveira | Oliveira Holding Ltda | Ativo | +90 dias |
+| Rede Posto Ipiranga | Posto Ipiranga Centro Ltda | Ativo | +1 dia |
+| Rede Posto Ipiranga | Posto Ipiranga Norte ME | Ativo | +60 dias |
+| Rede Posto Ipiranga | Posto Ipiranga Sul Ltda | Suspenso | -30 dias (vencida) |
+| Rede Posto Ipiranga | Posto Ipiranga Leste S.A. | Suspenso | +45 dias (manual) |
+| Rede Posto Ipiranga | Posto Ipiranga Oeste ME | Ativo | hoje |
+| Farmácias Bem Estar | Farmácia Bem Estar Matriz Ltda | Ativo | +6 dias |
+| Farmácias Bem Estar | Farmácia Bem Estar Filial 01 | Ativo | +80 dias |
+| Farmácias Bem Estar | Farmácia Bem Estar Filial 02 | Suspenso | -7 dias (vencida) |
+| Farmácias Bem Estar | Farmácia Bem Estar Filial 03 | Suspenso | +30 dias (manual) |
