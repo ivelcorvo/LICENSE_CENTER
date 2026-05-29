@@ -498,3 +498,48 @@ Os dados são gerados relativos à data atual, garantindo que os alertas do Dash
 | Farmácias Bem Estar | Farmácia Bem Estar Filial 01 | Ativo | +80 dias |
 | Farmácias Bem Estar | Farmácia Bem Estar Filial 02 | Suspenso | -7 dias (vencida) |
 | Farmácias Bem Estar | Farmácia Bem Estar Filial 03 | Suspenso | +30 dias (manual) |
+
+---
+
+## 9. Deploy
+
+O projeto está hospedado no **Firebase Hosting** e a URL de produção é:
+
+**https://license-center-4a0bd.web.app**
+
+### Pré-requisitos
+
+- Firebase CLI instalado globalmente:
+```powershell
+npm install -g firebase-tools
+```
+
+- Autenticado na conta Firebase:
+```powershell
+firebase login
+```
+
+### Processo de Deploy
+
+Sempre que quiser publicar uma nova versão, execute em sequência:
+
+**1. Gerar o build de produção:**
+```powershell
+npm run build
+```
+
+**2. Publicar no Firebase Hosting:**
+```powershell
+firebase deploy --only hosting
+```
+
+> O comando `--only hosting` garante que apenas o Hosting seja afetado, sem tocar em outras configurações do Firebase como regras do Firestore.
+
+### Arquivos gerados pelo Firebase
+
+| Arquivo | Descrição |
+|---|---|
+| `firebase.json` | Configuração do Firebase Hosting (pasta `dist`, rewrite para SPA) |
+| `.firebaserc` | Associação do projeto local com o projeto Firebase |
+
+> Esses arquivos devem ser commitados no Git.
