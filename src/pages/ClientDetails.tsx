@@ -153,13 +153,13 @@ export default function ClientDetails() {
               <tr key={company.id} className="hover:bg-zinc-800/20 transition-colors">
                 <td className="px-6 py-4">
                   <div className="flex flex-col">
-                    <span className="text-zinc-200 font-semibold">{company.corporateName}</span>
-                    <span className="text-xs text-zinc-500 font-mono">{company.cnpj}</span>
+                    <span className="text-zinc-200 font-semibold whitespace-nowrap">{company.corporateName}</span>
+                    <span className="text-xs text-zinc-500 font-mono whitespace-nowrap">{company.cnpj}</span>
                   </div>
                 </td>
 
                 <td className="px-6 py-4">
-                  <span className="bg-zinc-950 border border-zinc-800 px-3 py-1 rounded text-xs font-mono text-emerald-400">
+                  <span className="bg-zinc-950 border border-zinc-800 px-3 py-1 rounded text-xs font-mono text-emerald-400 whitespace-nowrap">
                     {company.licenseKey || 'SEM CHAVE'}
                   </span>
                 </td>

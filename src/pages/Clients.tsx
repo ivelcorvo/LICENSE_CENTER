@@ -93,10 +93,10 @@ export default function Clients() {
                       <i className="fa-solid fa-folder-tree"></i>
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-zinc-200 font-semibold tracking-wide">
+                      <span className="text-zinc-200 font-semibold tracking-wide whitespace-nowrap">
                         {customer.nickname}
                       </span>
-                      <span className="text-[10px] text-zinc-600 font-mono uppercase">
+                      <span className="text-[10px] text-zinc-600 font-mono uppercase whitespace-nowrap">
                         UID: {customer.id}
                       </span>
                     </div>
