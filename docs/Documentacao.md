@@ -1,10 +1,10 @@
-# LICENSE.sys — Documentação Técnica
+# LICENSE CENTER — Documentação Técnica
 
 ---
 
 ## 1. Visão Geral
 
-O **LICENSE.sys** é um dashboard administrativo para gestão de licenças de software em grupos empresariais. O sistema permite cadastrar grupos de empresas, vincular CNPJs a cada grupo e controlar o ciclo de vida das licenças de cada unidade (ativação, suspensão e expiração).
+O **LICENSE CENTER** é um dashboard administrativo para gestão de licenças de software em grupos empresariais. O sistema permite cadastrar grupos de empresas, vincular CNPJs a cada grupo e controlar o ciclo de vida das licenças de cada unidade (ativação, suspensão e expiração).
 
 ### Stack
 
@@ -32,6 +32,7 @@ src/
 ├── layouts/          # Estruturas de página (RootLayout com Sidebar e Outlet)
 ├── lib/              # Configurações de terceiros (firebase_config.ts)
 ├── pages/            # Telas da aplicação
+├── utils/            # Funções puras de domínio e helpers reutilizáveis
 └── App.tsx           # Definição das rotas
 ```
 
@@ -71,8 +72,11 @@ Firebase (Firestore)
     Hooks (src/hooks/)
     onSnapshot → estado local via useState
        ↓
+    Utils (src/utils/)
+    funções puras aplicadas sobre os dados brutos
+       ↓
     Páginas (src/pages/)
-    consomem os hooks e passam dados para os componentes
+    consomem os hooks, aplicam utils e passam dados para os componentes
        ↓
     Componentes (src/components/)
     recebem props e renderizam a UI
@@ -96,7 +100,7 @@ Firebase (Firestore)
 
 ## 4. Componentes
 
-Todos os componentes ficam em `src/components/`. São componentes de UI puros — não acessam o Firebase diretamente e não possuem lógica de negócio.
+Todos os componentes ficam em `src/components/`. A maioria é de UI pura — não acessa o Firebase diretamente. Exceção documentada: `EditCompanyModal`, que contém validação de regra de negócio antes de chamar o hook.
 
 ---
 
@@ -143,15 +147,19 @@ Indicador visual do status de uma unidade. Possui duas variantes: badge de texto
 
 ```tsx
 import { StatusBadge } from "../components/StatusBadge";
+import { getEffectiveStatus } from "../utils/licenseStatus";
+
+// Sempre passar o status EFETIVO, nunca company.status diretamente.
+// company.status é a intenção no banco; getEffectiveStatus considera a expiração por data.
 
 // Badge de texto (padrão) — usado em tabelas
-<StatusBadge status={company.status} />
+<StatusBadge status={getEffectiveStatus(company)} />
 
 // Ponto colorido — usado em listas densas
-<StatusBadge status={company.status} variant="dot" />
+<StatusBadge status={getEffectiveStatus(company)} variant="dot" />
 ```
 
-**Quando usar:** Sempre que precisar exibir o status `active` ou `suspended` de uma unidade. Nunca recriar a lógica de cor manualmente.
+**Quando usar:** Sempre que precisar exibir o status de uma unidade. Nunca passar `company.status` diretamente — sempre derivar com `getEffectiveStatus`. Nunca recriar a lógica de cor manualmente.
 
 ---
 
@@ -304,6 +312,38 @@ import { EmptyState } from "../components/EmptyState";
 
 ---
 
+### `EditCompanyModal`
+
+Modal de edição completa de uma unidade. Permite alterar razão social, CNPJ, e-mail, chave de licença, data de expiração e status.
+
+> ⚠️ Este componente é uma exceção à regra de "UI pura": ele contém validação de regra de negócio diretamente (ver Regras de Ativação na seção 9), pois valida os dados antes de chamar o hook de persistência.
+
+**Props**
+
+| Prop | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `isOpen` | `boolean` | ✅ | Controla a visibilidade do modal |
+| `onClose` | `() => void` | ✅ | Callback chamado ao fechar ou cancelar |
+| `company` | `Company \| null` | ✅ | Dados da unidade a ser editada |
+| `onUpdate` | `(id: string, data: Partial<Company>) => Promise<void>` | ✅ | Função de persistência vinda do hook |
+
+**Exemplo de uso**
+
+```tsx
+import { EditCompanyModal } from "../components/EditCompanyModal";
+
+<EditCompanyModal
+  isOpen={isEditModalOpen}
+  onClose={() => setIsEditModalOpen(false)}
+  company={companyToEdit}
+  onUpdate={updateCompany}
+/>
+```
+
+**Quando usar:** Exclusivamente em `ClientDetails.tsx` para editar os dados de uma unidade existente. O modal preenche o formulário automaticamente com os dados atuais da unidade ao abrir.
+
+---
+
 ## 5. Contexts
 
 Todos os contexts ficam em `src/contexts/`. Gerenciam estado global da aplicação compartilhado entre páginas e componentes, sem passar props manualmente por toda a árvore.
@@ -395,7 +435,7 @@ Busca o nome de um grupo específico pelo ID.
 
 ### `useCompanies`
 
-Gerencia a subcoleção `companies` de um grupo específico. Inclui auto-suspensão de licenças vencidas.
+Gerencia a subcoleção `companies` de um grupo específico. Retorna os dados brutos do banco e, separadamente, sincroniza o status de licenças vencidas em uma operação atômica via `writeBatch`.
 
 **Parâmetros**
 
@@ -407,11 +447,13 @@ Gerencia a subcoleção `companies` de um grupo específico. Inclui auto-suspens
 
 | Campo | Tipo | Descrição |
 |---|---|---|
-| `companies` | `Company[]` | Lista de unidades em tempo real |
+| `companies` | `Company[]` | Lista de unidades em tempo real (dados brutos do banco) |
 | `loading` | `boolean` | Verdadeiro enquanto carrega |
 | `isSubmitting` | `boolean` | Verdadeiro enquanto cria uma unidade |
 | `addCompany` | `(data) => Promise<void>` | Adiciona uma nova unidade ao grupo |
 | `updateCompany` | `(id, data) => Promise<void>` | Atualiza campos de uma unidade |
+
+**Comportamento de sincronização:** A cada disparo do `onSnapshot`, o hook separa o mapeamento de dados da verificação de expiração. Se houver unidades com `status: 'active'` e `expiresAt` vencido, um único `writeBatch` atualiza todas para `'suspended'` no banco. Essa operação é atômica (tudo ou nada) e não bloqueia a renderização.
 
 **Usado em:** `ClientDetails.tsx`
 
@@ -419,7 +461,7 @@ Gerencia a subcoleção `companies` de um grupo específico. Inclui auto-suspens
 
 ### `useDashboardStats`
 
-Agrega estatísticas globais do sistema via `collectionGroup`.
+Agrega estatísticas globais do sistema via `collectionGroup`. Utiliza `isLicenseExpired` de `licenseStatus.ts` para calcular o status efetivo de cada unidade em memória, garantindo contagens corretas independente do valor gravado no campo `status` do banco.
 
 **Retorna**
 
@@ -427,10 +469,10 @@ Agrega estatísticas globais do sistema via `collectionGroup`.
 |---|---|---|
 | `stats.totalGroups` | `number` | Total de grupos cadastrados |
 | `stats.totalCompanies` | `number` | Total de unidades cadastradas |
-| `stats.activeLicenses` | `number` | Total de licenças ativas |
-| `stats.expired` | `number` | Licenças já expiradas e suspensas |
-| `stats.expiring24h` | `number` | Licenças ativas que vencem em até 24h |
-| `stats.expiringWeek` | `number` | Licenças ativas que vencem em até 7 dias |
+| `stats.activeLicenses` | `number` | Licenças efetivamente ativas (status ativo + data não vencida) |
+| `stats.expired` | `number` | Licenças com data de expiração já passada (independente do status administrativo) |
+| `stats.expiring24h` | `number` | Licenças efetivamente ativas que vencem hoje ou amanhã |
+| `stats.expiringWeek` | `number` | Licenças efetivamente ativas que vencem do 2º ao 7º dia |
 | `loading` | `boolean` | Verdadeiro enquanto carrega |
 
 **Usado em:** `Dashboard.tsx`
@@ -439,7 +481,7 @@ Agrega estatísticas globais do sistema via `collectionGroup`.
 
 ### `useLicensesManager`
 
-Gerencia todas as licenças do sistema com suporte a atualizações em lote (single, grupo e global).
+Gerencia todas as licenças do sistema com suporte a atualizações em lote (single, grupo e global). Além da gestão, sincroniza o banco automaticamente ao carregar: unidades com `status: 'active'` e data vencida são atualizadas para `'suspended'` via `writeBatch`, cobrindo todos os grupos de uma vez.
 
 **Retorna**
 
@@ -458,7 +500,85 @@ Gerencia todas as licenças do sistema com suporte a atualizações em lote (sin
 
 ---
 
-## 7. Variáveis de Ambiente
+## 7. Utilitários
+
+Funções puras de domínio sem estado e sem efeitos colaterais. Ficam em `src/utils/`. Não acessam o Firebase e não dependem de React — podem ser importadas em hooks, páginas e componentes sem restrição.
+
+---
+
+### `licenseStatus` (`src/utils/licenseStatus.ts`)
+
+Centraliza toda a lógica de expiração de licenças. É a fonte única de verdade para determinar se uma licença está vencida e qual é o seu status efetivo. Todo código que precisa dessas respostas deve importar daqui — nunca reimplementar a lógica localmente.
+
+**Funções exportadas**
+
+---
+
+#### `isLicenseExpired(expiresAt, now?)`
+
+Retorna `true` se a licença está vencida segundo a semântica do sistema.
+
+| Parâmetro | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `expiresAt` | `any` | ✅ | Data de expiração — aceita Firestore Timestamp, `{ seconds }`, `Date` ou `string` |
+| `now` | `Date` | ❌ | Data de referência. Padrão: `new Date()`. Útil para testes com data fixa. |
+
+**Retorna:** `boolean`
+
+**Semântica:** Uma licença é considerada vencida somente a partir do dia **seguinte** ao `expiresAt`. A comparação é feita na meia-noite de ambas as datas (`startOfDay`), portanto uma licença que vence hoje ainda é válida hoje — consistent com a regra de ativação.
+
+```
+startOfDay(expiresAt) < startOfDay(now)  →  vencida
+startOfDay(expiresAt) >= startOfDay(now) →  válida
+```
+
+**Exemplo de uso**
+
+```ts
+import { isLicenseExpired } from '../utils/licenseStatus';
+
+isLicenseExpired(company.expiresAt)        // usa new Date() internamente
+isLicenseExpired(company.expiresAt, now)   // usa a data passada (recomendado em loops)
+```
+
+---
+
+#### `getEffectiveStatus(company, now?)`
+
+Retorna o status efetivo de uma unidade, combinando a intenção administrativa gravada no banco com a regra de expiração por data.
+
+| Parâmetro | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `company` | `Pick<Company, 'status' \| 'expiresAt'>` | ✅ | Objeto com os dois campos necessários |
+| `now` | `Date` | ❌ | Data de referência. Padrão: `new Date()`. |
+
+**Retorna:** `'active' | 'suspended'`
+
+**Regra central:** A expiração por data só pode **suspender**, nunca **reativar**. Uma unidade suspensa manualmente (mesmo com data futura) permanece suspensa. Uma unidade ativa com data vencida é tratada como suspensa.
+
+```
+status === 'suspended'              →  'suspended'  (suspensão administrativa)
+status === 'active' && isExpired    →  'suspended'  (suspensão por data)
+status === 'active' && !isExpired   →  'active'
+```
+
+**Exemplo de uso**
+
+```tsx
+import { getEffectiveStatus } from '../utils/licenseStatus';
+
+// Em componentes — para exibição
+<StatusBadge status={getEffectiveStatus(company)} />
+
+// Em hooks — para contagens
+const effectiveStatus = getEffectiveStatus(company, now);
+```
+
+**Por que `Pick<Company, 'status' | 'expiresAt'>` e não `Company`:** A função aceita qualquer objeto com esses dois campos, sem exigir a interface completa. Isso facilita o uso em hooks que trabalham com dados parciais e em testes unitários.
+
+---
+
+## 8. Variáveis de Ambiente
 
 O projeto usa variáveis de ambiente para proteger as credenciais do Firebase. Crie um arquivo `.env` na raiz do projeto (mesmo nível do `index.html`).
 
@@ -478,18 +598,52 @@ O projeto usa variáveis de ambiente para proteger as credenciais do Firebase. C
 
 ---
 
-## 8. Regras de Negócio
+## 9. Regras de Negócio
 
-### Expiração Automática de Licenças
+### Status Persistido vs. Status Efetivo
 
-Ao carregar as unidades de um grupo (`useCompanies`), o sistema verifica automaticamente se alguma licença com `status: 'active'` possui `expiresAt` anterior à data atual. Se sim, o status é atualizado para `'suspended'` diretamente no Firestore, sem intervenção manual.
+Esta é a distinção de design mais importante do sistema. O campo `status` no Firestore representa a **intenção administrativa** — o que o operador definiu manualmente. Ele não é, sozinho, suficiente para determinar se uma licença está realmente ativa.
+
+O **status efetivo** é o resultado de combinar a intenção administrativa com a regra de expiração por data, calculado pela função `getEffectiveStatus` em `src/utils/licenseStatus.ts`. Todo código de exibição e contagem deve usar o status efetivo, nunca o campo `status` bruto.
+
+| Situação | `status` no banco | Status efetivo |
+|---|---|---|
+| Ativa, data futura | `active` | `active` |
+| Ativa, data vencida | `active` | `suspended` |
+| Suspensa manualmente, data futura | `suspended` | `suspended` |
+| Suspensa manualmente, data passada | `suspended` | `suspended` |
+
+### Semântica de "Vencido"
+
+Uma licença é considerada vencida a partir do dia **seguinte** ao `expiresAt` — ela vale até o fim do dia de vencimento. A comparação sempre ocorre entre as meia-noites de ambas as datas (`startOfDay`), eliminando ambiguidade de horário.
+
+**Exemplo:** licença com `expiresAt = 31/05/2026`:
+- Em 31/05/2026 às 23:59 → **válida**
+- Em 01/06/2026 às 00:01 → **vencida**
+
+### Sincronização Automática do Banco
+
+Quando o usuário abre a página **Licenses** (`useLicensesManager`) ou a página **ClientDetails** de qualquer grupo (`useCompanies`), o sistema verifica automaticamente se há unidades com `status: 'active'` e data vencida. Se houver, um único `writeBatch` atualiza todas para `'suspended'` no Firestore em uma operação atômica.
+
+Características desta implementação:
+- O mapeamento de dados e a gravação no banco são operações separadas — sem efeitos colaterais dentro do `.map`.
+- O `writeBatch` é atômico: grava tudo ou não grava nada em caso de erro.
+- A operação é auto-estabilizante: após o commit, o `onSnapshot` dispara novamente, mas como não há mais unidades `active` vencidas, nenhuma nova gravação ocorre.
+- Erros no batch são capturados e logados no console sem interromper a renderização.
 
 ### Regras de Ativação
 
-Uma unidade **não pode** ser ativada se a data de expiração for igual ou anterior à data atual. Essa regra é aplicada em dois lugares:
+Uma unidade **não pode** ser ativada se `startOfDay(expiresAt) < startOfDay(hoje)` — ou seja, se a data de expiração for estritamente anterior a hoje. A data de hoje é permitida (a licença vale até o fim do dia).
 
-- `EditCompanyModal.tsx` — ao salvar a edição de uma unidade
-- `useLicensesManager.ts` (`updateBatch`) — ao executar atualizações em lote
+Essa regra é aplicada em três lugares, todos usando o operador `<` (estritamente menor):
+
+| Local | Contexto |
+|---|---|
+| `useLicensesManager.ts` → `updateBatch` | Atualizações em lote via página Licenses |
+| `EditCompanyModal.tsx` → `handleSubmit` | Edição individual via modal em ClientDetails |
+| `src/utils/licenseStatus.ts` → `isLicenseExpired` | Base de todas as derivações de status |
+
+> ⚠️ Se esta regra precisar mudar (ex: bloquear também a data de hoje), a alteração deve ser feita nos três lugares acima de forma sincronizada. O comentário no `EditCompanyModal` e no `updateBatch` referencia explicitamente esta decisão.
 
 ### Geração de Chave de Licença
 
@@ -497,11 +651,11 @@ Ao cadastrar uma nova unidade, uma chave é gerada automaticamente no formato `X
 
 ### Datas e Fuso Horário
 
-Todas as datas são criadas manualmente via `new Date(year, month - 1, day)` para evitar o deslocamento de fuso horário que ocorre ao usar `new Date("YYYY-MM-DD")` diretamente (que interpreta a string como UTC e pode resultar no dia anterior no horário local).
+Todas as datas são criadas via `new Date(year, month - 1, day)` para evitar o deslocamento de fuso horário que ocorre ao usar `new Date("YYYY-MM-DD")` diretamente (que interpreta a string como UTC e pode resultar no dia anterior no horário local).
 
 ---
 
-## 9. Seed de Dados
+## 10. Seed de Dados
 
 O projeto possui uma ferramenta para limpar e repovoar o banco com dados simulados. Útil para demonstrações e testes.
 
@@ -529,25 +683,25 @@ import Seed from './pages/Seed';
 
 Os dados são gerados relativos à data atual, garantindo que os alertas do Dashboard sempre façam sentido.
 
-| Grupo | Unidade | Status | Vencimento |
-|---|---|---|---|
-| Grupo Oliveira | Oliveira Combustíveis Ltda | Ativo | +75 dias |
-| Grupo Oliveira | Oliveira Transportes S.A. | Ativo | +3 dias |
-| Grupo Oliveira | Oliveira Logística ME | Suspenso | -15 dias (vencida) |
-| Grupo Oliveira | Oliveira Holding Ltda | Ativo | +90 dias |
-| Rede Posto Ipiranga | Posto Ipiranga Centro Ltda | Ativo | +1 dia |
-| Rede Posto Ipiranga | Posto Ipiranga Norte ME | Ativo | +60 dias |
-| Rede Posto Ipiranga | Posto Ipiranga Sul Ltda | Suspenso | -30 dias (vencida) |
-| Rede Posto Ipiranga | Posto Ipiranga Leste S.A. | Suspenso | +45 dias (manual) |
-| Rede Posto Ipiranga | Posto Ipiranga Oeste ME | Ativo | hoje |
-| Farmácias Bem Estar | Farmácia Bem Estar Matriz Ltda | Ativo | +6 dias |
-| Farmácias Bem Estar | Farmácia Bem Estar Filial 01 | Ativo | +80 dias |
-| Farmácias Bem Estar | Farmácia Bem Estar Filial 02 | Suspenso | -7 dias (vencida) |
-| Farmácias Bem Estar | Farmácia Bem Estar Filial 03 | Suspenso | +30 dias (manual) |
+| Grupo | Unidade | Status no banco | Vencimento | Observação |
+|---|---|---|---|---|
+| Grupo Oliveira | Oliveira Combustíveis Ltda | `active` | +75 dias | Ativa normal |
+| Grupo Oliveira | Oliveira Transportes S.A. | `active` | +3 dias | Ativa, alerta semanal |
+| Grupo Oliveira | Oliveira Logística ME | `suspended` | -15 dias | Suspensa por vencimento |
+| Grupo Oliveira | Oliveira Holding Ltda | `active` | +90 dias | Ativa normal |
+| Rede Posto Ipiranga | Posto Ipiranga Centro Ltda | `active` | +1 dia | Ativa, alerta 24h |
+| Rede Posto Ipiranga | Posto Ipiranga Norte ME | `active` | +60 dias | Ativa normal |
+| Rede Posto Ipiranga | Posto Ipiranga Sul Ltda | `suspended` | -30 dias | Suspensa por vencimento |
+| Rede Posto Ipiranga | Posto Ipiranga Leste S.A. | `suspended` | +45 dias | **Suspensa manualmente** — data futura, demonstra que expiração não reativa |
+| Rede Posto Ipiranga | Posto Ipiranga Oeste ME | `active` | hoje | Ativa, vence hoje (válida até fim do dia) |
+| Farmácias Bem Estar | Farmácia Bem Estar Matriz Ltda | `active` | +6 dias | Ativa, alerta semanal |
+| Farmácias Bem Estar | Farmácia Bem Estar Filial 01 | `active` | +80 dias | Ativa normal |
+| Farmácias Bem Estar | Farmácia Bem Estar Filial 02 | `suspended` | -7 dias | Suspensa por vencimento |
+| Farmácias Bem Estar | Farmácia Bem Estar Filial 03 | `suspended` | +30 dias | **Suspensa manualmente** — data futura, demonstra que expiração não reativa |
 
 ---
 
-## 10. Deploy
+## 11. Deploy
 
 O projeto está hospedado no **Firebase Hosting** e a URL de produção é:
 

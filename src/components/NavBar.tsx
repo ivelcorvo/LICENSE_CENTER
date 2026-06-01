@@ -37,7 +37,7 @@ const NavBar = () => {
         <div className="p-6 whitespace-nowrap mt-2">
           <h2 className="text-emerald-500 font-bold text-xl flex items-center gap-3">
             <i className="fa-solid fa-shield-halved min-w-6"></i>
-            <span>LICENSE.sys</span>
+            <span>LICENSE CENTER</span>
           </h2>
         </div>
 

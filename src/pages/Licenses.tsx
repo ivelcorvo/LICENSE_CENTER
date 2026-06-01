@@ -5,6 +5,7 @@ import { PageHeader } from '../components/PageHeader';
 import { SectionCard } from '../components/SectionCard';
 import { StatusBadge } from '../components/StatusBadge';
 import { LoadingSpinner } from '../components/LoadingSpinner';
+import { getEffectiveStatus } from '../utils/licenseStatus';
 
 export default function LicensesPage() {
   const {
@@ -145,59 +146,65 @@ export default function LicensesPage() {
 
               {/* ALTERAR | UNIDADE */}
               <div className="divide-y divide-zinc-800/50">
-                {group.companies.map((company) => (
-                  <div key={company.id} className="p-5 flex items-center justify-between hover:bg-zinc-800/20 transition-colors">
-                    <div className="flex items-center gap-4">
-                      <StatusBadge status={company.status} variant="dot" />
-                      <div>
-                        <p className="text-zinc-200 font-semibold">{company.corporateName}</p>
-                        <p className="text-xs text-zinc-500 font-mono">{company.cnpj}</p>
-                      </div>
-                    </div>
+                {group.companies.map((company) => {
+                  // Status efetivo: combina o status persistido no banco com a expiração por data.
+                  // Uma unidade ativa com data vencida é tratada como suspensa em toda a UI.
+                  const effectiveStatus = getEffectiveStatus(company);
 
-                    <div className="flex items-center gap-8">
-
-                      {/* Seletor de Status Individual */}
-                      <div className="flex flex-col gap-1">
-                        <label className="text-[10px] font-bold text-zinc-600 uppercase ml-1">Status</label>
-                        <select
-                          value={company.status}
-                          onChange={(e) => updateSingle(company, { status: e.target.value as 'active' | 'suspended' })}
-                          className={`text-xs font-bold bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-emerald-500/10 cursor-pointer ${company.status === 'active' ? 'text-emerald-500' : 'text-rose-500'}`}
-                        >
-                          <option value="active">Ativo</option>
-                          <option value="suspended">Suspenso</option>
-                        </select>
-                      </div>
-
-                      {/* Expiração Individual */}
-                      <div className="flex flex-col gap-1">
-                        <label className="text-[10px] font-bold text-rose-400 uppercase ml-1 tracking-wider">Expiração</label>
-                        <div className="flex items-center gap-3 bg-zinc-950 px-3 py-1.5 rounded-lg border border-zinc-800 focus-within:border-emerald-500/50 transition-all">
-                          <input
-                            type="date"
-                            className="bg-transparent text-xs outline-none border-none p-0 w-28 text-zinc-400 font-medium color-scheme-dark"
-                            value={(() => {
-                              if (!company.expiresAt) return '';
-                              const d = company.expiresAt.toDate ? company.expiresAt.toDate() : new Date(company.expiresAt.seconds * 1000);
-                              const y = d.getFullYear();
-                              const m = String(d.getMonth() + 1).padStart(2, '0');
-                              const day = String(d.getDate()).padStart(2, '0');
-                              return `${y}-${m}-${day}`;
-                            })()}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              if (!val) return;
-                              const [y, m, d] = val.split('-').map(Number);
-                              updateSingle(company, { expiresAt: new Date(y, m - 1, d) });
-                            }}
-                          />
+                  return (
+                    <div key={company.id} className="p-5 flex items-center justify-between hover:bg-zinc-800/20 transition-colors">
+                      <div className="flex items-center gap-4">
+                        <StatusBadge status={effectiveStatus} variant="dot" />
+                        <div>
+                          <p className="text-zinc-200 font-semibold">{company.corporateName}</p>
+                          <p className="text-xs text-zinc-500 font-mono">{company.cnpj}</p>
                         </div>
                       </div>
 
+                      <div className="flex items-center gap-8">
+
+                        {/* Seletor de Status Individual */}
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[10px] font-bold text-zinc-600 uppercase ml-1">Status</label>
+                          <select
+                            value={effectiveStatus}
+                            onChange={(e) => updateSingle(company, { status: e.target.value as 'active' | 'suspended' })}
+                            className={`text-xs font-bold bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-emerald-500/10 cursor-pointer ${effectiveStatus === 'active' ? 'text-emerald-500' : 'text-rose-500'}`}
+                          >
+                            <option value="active">Ativo</option>
+                            <option value="suspended">Suspenso</option>
+                          </select>
+                        </div>
+
+                        {/* Expiração Individual */}
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[10px] font-bold text-rose-400 uppercase ml-1 tracking-wider">Expiração</label>
+                          <div className="flex items-center gap-3 bg-zinc-950 px-3 py-1.5 rounded-lg border border-zinc-800 focus-within:border-emerald-500/50 transition-all">
+                            <input
+                              type="date"
+                              className="bg-transparent text-xs outline-none border-none p-0 w-28 text-zinc-400 font-medium color-scheme-dark"
+                              value={(() => {
+                                if (!company.expiresAt) return '';
+                                const d = company.expiresAt.toDate ? company.expiresAt.toDate() : new Date(company.expiresAt.seconds * 1000);
+                                const y = d.getFullYear();
+                                const m = String(d.getMonth() + 1).padStart(2, '0');
+                                const day = String(d.getDate()).padStart(2, '0');
+                                return `${y}-${m}-${day}`;
+                              })()}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (!val) return;
+                                const [y, m, d] = val.split('-').map(Number);
+                                updateSingle(company, { expiresAt: new Date(y, m - 1, d) });
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
             </div>

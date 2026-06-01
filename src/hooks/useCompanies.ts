@@ -8,8 +8,10 @@ import {
   serverTimestamp,
   orderBy,
   doc,
-  updateDoc
+  updateDoc,
+  writeBatch
 } from 'firebase/firestore';
+import { isLicenseExpired } from '../utils/licenseStatus';
 
 export interface Company {
   id: string;
@@ -39,37 +41,44 @@ export function useCompanies(customerId: string | undefined) {
 
     if (!customerId) return;
 
-    // Acessamos a subcoleção: customers -> {idDoGrupo} -> companies
     const companiesRef = collection(db, "customers", customerId, "companies");
     const q = query(companiesRef, orderBy("createdAt", "desc"));
 
-    // Escuta os dados em tempo real
     const unsub = onSnapshot(q, (snapshot) => {
 
-      const now = new Date();
+      // 1. Mapeia os dados crus do banco para o estado local
+      const data = snapshot.docs.map(docSnap => ({
+        id: docSnap.id,
+        ...docSnap.data()
+      })) as Company[];
 
-      const data = snapshot.docs.map(docSnap => {
-        const companyData = docSnap.data();
-        const expiresAt = companyData.expiresAt?.toDate();
-        
-        // REGRA: Se a data ja expirou e ainda estiver "ativo", precisamos "desativar"
-        if (companyData.status === 'active' && expiresAt && expiresAt < now) {
-          // Atualiza o banco silenciosamente
-          updateDoc(docSnap.ref, { status: 'suspended' });
-          return { id: docSnap.id, ...companyData, status: 'suspended' };
-        }
-
-        return { id: docSnap.id, ...companyData };
-      }) as Company[];
-      
       setCompanies(data);
       setLoading(false);
+
+      // 2. Sincronização separada: atualiza no banco as licenças que estão
+      //    'active' mas com data vencida. Usa writeBatch para fazer tudo
+      //    em uma única operação atômica, sem misturar com o mapeamento acima.
+      const now = new Date();
+      const expiradas = snapshot.docs.filter(docSnap => {
+        const d = docSnap.data();
+        return d.status === 'active' && isLicenseExpired(d.expiresAt, now);
+      });
+
+      if (expiradas.length > 0) {
+        const batch = writeBatch(db);
+        expiradas.forEach(docSnap => {
+          batch.update(docSnap.ref, { status: 'suspended', updatedAt: new Date() });
+        });
+        batch.commit().catch(err =>
+          console.error('Erro ao sincronizar status de licenças vencidas:', err)
+        );
+      }
+
     }, (error) => {
       console.error("Erro ao buscar empresas:", error);
       setLoading(false);
     });
 
-    // Limpa a conexão quando saímos da página
     return () => unsub();
   }, [customerId]);
 
@@ -90,9 +99,9 @@ export function useCompanies(customerId: string | undefined) {
       const companiesRef = collection(db, "customers", customerId, "companies");
       await addDoc(companiesRef, {
         ...companyData,
-        status: 'active', // Toda empresa nova começa ativa
-        licenseKey: generateKey(), // Chave gerada automaticamente
-        expiresAt: expirationDate,  // Expira em 1 dia
+        status: 'active',
+        licenseKey: generateKey(),
+        expiresAt: expirationDate,
         createdAt: serverTimestamp()
       });
     } catch (error) {

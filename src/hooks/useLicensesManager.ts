@@ -9,6 +9,7 @@ import {
   writeBatch 
 } from 'firebase/firestore';
 import { type Company } from './useCompanies';
+import { isLicenseExpired } from '../utils/licenseStatus';
 
 interface GroupedLicenses {
   [customerId: string]: {
@@ -42,12 +43,11 @@ export function useLicensesManager() {
             const list = compSnap.docs.map(d => ({
               id: d.id,
               ...d.data(),
-              customerId: d.ref.parent.parent?.id  // extrai o ID do Grupo "escalando" as pastas do Firebase de baixo para cima.
+              customerId: d.ref.parent.parent?.id
             })) as unknown as Company[];
 
             setAllCompanies(list);
 
-            // const grouped = list.reduce((acc, company) => { ... }, {} as GroupedLicenses);
             const grouped = list.reduce((acc, company) => {
               const cid = company.customerId;
               if (!cid) return acc;
@@ -63,6 +63,23 @@ export function useLicensesManager() {
 
             setGroupedData(grouped);
             setLoading(false);
+
+            // Sincronização: atualiza no banco as licenças que estão
+            // 'active' mas com data vencida. Cobre todos os grupos de uma vez.
+            const expiradas = compSnap.docs.filter(d => {
+              const data = d.data();
+              return data.status === 'active' && isLicenseExpired(data.expiresAt);
+            });
+
+            if (expiradas.length > 0) {
+              const batch = writeBatch(db);
+              expiradas.forEach(d => {
+                batch.update(d.ref, { status: 'suspended', updatedAt: new Date() });
+              });
+              batch.commit().catch(err =>
+                console.error('Erro ao sincronizar status de licenças vencidas:', err)
+              );
+            }
           },
           (err) => {
             console.error("Erro ao carregar unidades:", err);
@@ -90,7 +107,6 @@ export function useLicensesManager() {
     setIsUpdating(true);
     setError(null);    
 
-    // Preparar a data de hoje para comparação (zerando as horas)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -98,7 +114,6 @@ export function useLicensesManager() {
 
     try {
 
-      // #### NÃO PERMITE SELECIONAR UMA DATA JA PASSADA ####
       if (data.expiresAt) {
         const newExpiration = new Date(data.expiresAt);
         newExpiration.setHours(0, 0, 0, 0);
@@ -110,18 +125,10 @@ export function useLicensesManager() {
 
       targets.forEach(comp => {
 
-        // #### DATA DE EXPIRÇÃO ####
-        // Se estamos enviando uma nova no 'data', usamos ela. 
-        // Caso contrário, usamos a que a empresa já tem.
         const rawDate = data.expiresAt || comp.expiresAt;
-
-        // Converter para objeto Date caso venha do Firestore (Timestamp)
         const expirationDate = rawDate?.toDate ? rawDate.toDate() : new Date(rawDate);
         expirationDate.setHours(0, 0, 0, 0);
 
-        // #### REGRA ####
-        // Se o status final for 'active' (seja vindo no 'data' ou já existente no 'comp')
-        // e a data for hoje ou passada, bloqueamos.
         const finalStatus = data.status || comp.status;
 
         if (finalStatus === 'active' && expirationDate < today) {
@@ -148,7 +155,7 @@ export function useLicensesManager() {
     }
   }, []);
 
-  // ==================================================================================s
+  // ==================================================================================
   // Helpers específicos para a UI
   const updateSingle = (company: Company, data: Partial<Company>) => updateBatch([company], data);
   const updateGroup  = (companies: Company[], data: Partial<Company>) => updateBatch(companies, data);

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router";
 import { useClientDetails } from "../hooks/useClientDetails";
 import { useCompanies } from "../hooks/useCompanies";
 import { useToast } from "../contexts/ToastContext";
+import { getEffectiveStatus } from "../utils/licenseStatus";
 
 import { PageHeader } from "../components/PageHeader";
 import { SectionCard } from "../components/SectionCard";
@@ -168,7 +169,7 @@ export default function ClientDetails() {
                 </td>
 
                 <td className="px-6 py-4">
-                  <StatusBadge status={company.status} />
+                  <StatusBadge status={getEffectiveStatus(company)} />
                 </td>
 
                 <td className="px-6 py-4 text-right">

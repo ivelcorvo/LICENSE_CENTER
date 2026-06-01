@@ -57,7 +57,9 @@ export function EditCompanyModal({ isOpen, onClose, company, onUpdate }: EditCom
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    if (formData.status === 'active' && dateToSave <= today) {
+    // Usa < (estritamente menor) e não <=, pois a licença vale até o fim do dia de expiração.
+    // Consistente com a mesma regra em useLicensesManager.updateBatch.
+    if (formData.status === 'active' && dateToSave < today) {
       showToast("Para ativar a unidade, a data de expiração deve ser maior que a data atual.", "error");
       return;
     }

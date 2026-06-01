@@ -6,6 +6,7 @@ import {
   collectionGroup, 
   query 
 } from 'firebase/firestore';
+import { isLicenseExpired } from '../utils/licenseStatus';
 
 /**
  * HOOK: useDashboardStats
@@ -51,32 +52,53 @@ export function useDashboardStats() {
     // #### Listener | Unidades (Collection Group) ####
     const qAllCompanies = query(collectionGroup(db, "companies"));
     const unsubAllComp = onSnapshot(qAllCompanies, (compSnap) => {
-      const allDocs = compSnap.docs.map(d => ({
-        status: d.data().status,
-        expDate: d.data().expiresAt?.toDate() // Firebase já traz como Timestamp
-      }));
 
-      // Filtros em memória (mais rápido que múltiplas queries)
+      const allDocs = compSnap.docs.map(d => {
+        const status    = d.data().status as 'active' | 'suspended';
+        const expiresAt = d.data().expiresAt;
+        const expDate   = expiresAt?.toDate() as Date | undefined;
+
+        // Status efetivo: admin-suspensa OU vencida por data.
+        // Regra: a expiração só pode SUSPENDER, nunca REATIVAR.
+        const effectiveStatus: 'active' | 'suspended' =
+          status === 'suspended' || isLicenseExpired(expiresAt, now)
+            ? 'suspended'
+            : 'active';
+
+        return { effectiveStatus, expDate };
+      });
+
       setStats(prev => ({
         ...prev,
         totalCompanies: compSnap.size,
-        activeLicenses: allDocs.filter(d => d.status === 'active').length,
-        
-        // Unidades que já estão suspensas por data retroativa
-        expired: allDocs.filter(d => 
-          d.status === 'suspended' && d.expDate < now
+
+        // Licenças efetivamente ativas (banco ativo + data ainda não vencida)
+        activeLicenses: allDocs.filter(d =>
+          d.effectiveStatus === 'active'
         ).length,
-        
-        // Ativas que vencem hoje ou amanhã
-        expiring24h: allDocs.filter(d => 
-          d.status === 'active' && d.expDate >= now && d.expDate <= tomorrowEnd
+
+        // Licenças com data vencida (independente do status administrativo)
+        expired: allDocs.filter(d =>
+          d.expDate && isLicenseExpired(d.expDate, now)
         ).length,
-        
-        // Ativas que vencem do terceiro dia até o sétimo (Exclusividade)
-        expiringWeek: allDocs.filter(d => 
-          d.status === 'active' && d.expDate > tomorrowEnd && d.expDate <= nextWeekEnd
+
+        // Efetivamente ativas que vencem hoje ou amanhã
+        expiring24h: allDocs.filter(d =>
+          d.effectiveStatus === 'active' &&
+          d.expDate &&
+          d.expDate >= now &&
+          d.expDate <= tomorrowEnd
+        ).length,
+
+        // Efetivamente ativas que vencem do 2º ao 7º dia
+        expiringWeek: allDocs.filter(d =>
+          d.effectiveStatus === 'active' &&
+          d.expDate &&
+          d.expDate > tomorrowEnd &&
+          d.expDate <= nextWeekEnd
         ).length
       }));
+
       setLoading(false);
     });
 
