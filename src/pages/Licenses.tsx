@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLicensesManager } from '../hooks/useLicensesManager';
+import { useToast } from '../contexts/ToastContext';
 import { PageHeader } from '../components/PageHeader';
 import { SectionCard } from '../components/SectionCard';
 import { StatusBadge } from '../components/StatusBadge';
@@ -16,12 +17,19 @@ export default function LicensesPage() {
     error
   } = useLicensesManager();
 
+  const { showToast } = useToast();
+
   const [globalStatus, setGlobalStatus] = useState<'active' | 'suspended'>('active');
   const [globalDate, setGlobalDate]     = useState('');
 
+  // Dispara o toast sempre que o error do hook mudar
+  useEffect(() => {
+    if (error) showToast(error, 'error');
+  }, [error]);
+
   const handleGlobalUpdate = () => {
     if (!globalDate) {
-      alert("ERRO: Para uma atualização global, você deve selecionar uma data de expiração obrigatória.");
+      showToast('Para uma atualização global, você deve selecionar uma data de expiração obrigatória.', 'error');
       return;
     }
 
@@ -96,14 +104,6 @@ export default function LicensesPage() {
           </button>
         </div>
       </SectionCard>
-
-      {/* ========================================================================================================= */}
-      {/* Mensagem de erro */}
-      {error && (
-        <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-xl text-sm animate-in slide-in-from-top-2">
-          <i className="fa-solid fa-triangle-exclamation mr-2"></i> {error}
-        </div>
-      )}
 
       {/* ========================================================================================================= */}
       {/* ALTERAR | POR GRUPO */}

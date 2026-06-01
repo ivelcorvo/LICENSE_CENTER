@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-
 import { type Company } from "../hooks/useCompanies";
+import { useToast } from "../contexts/ToastContext";
 
 interface EditCompanyModalProps {
   isOpen: boolean;
@@ -11,32 +11,28 @@ interface EditCompanyModalProps {
 
 export function EditCompanyModal({ isOpen, onClose, company, onUpdate }: EditCompanyModalProps) {
 
+  const { showToast } = useToast();
+
   const [formData, setFormData] = useState({
     cnpj: "",
     corporateName: "",
     email: "",
-    licenseKey: "", 
-    expiresAt: "",  
+    licenseKey: "",
+    expiresAt: "",
     status: "" as "active" | "suspended" | ""
   });
 
   const [isSaving, setIsSaving] = useState(false);
 
-  // Efeito para preencher o formulário quando o modal abre com uma empresa selecionada
   useEffect(() => {
     if (company && isOpen) {
-
-      // Converte o Timestamp para String YYYY-MM-DD
       let dateString = "";
       if (company.expiresAt) {
         const date = company.expiresAt.toDate ? company.expiresAt.toDate() : new Date(company.expiresAt.seconds * 1000);
-        
-        // Extrai os números separadamente para evitar o erro de fuso horário
         const year  = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0'); // Meses começam em 0 no JS
+        const month = String(date.getMonth() + 1).padStart(2, '0');
         const day   = String(date.getDate()).padStart(2, '0');
-        
-        dateString = `${year}-${month}-${day}`; // Formato correto: YYYY-MM-DD
+        dateString = `${year}-${month}-${day}`;
       }
 
       setFormData({
@@ -44,32 +40,28 @@ export function EditCompanyModal({ isOpen, onClose, company, onUpdate }: EditCom
         corporateName: company.corporateName,
         email: company.email,
         licenseKey: company.licenseKey || "",
-        expiresAt: dateString,          
-        status: company.status       
+        expiresAt: dateString,
+        status: company.status
       });
     }
   }, [company, isOpen]);
 
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!company) return;    
+    if (!company) return;
 
-    // Criando a data manualmente (ano, mês-1, dia)
     const [year, month, day] = formData.expiresAt.split('-').map(Number);
     const dateToSave = new Date(year, month - 1, day);
 
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Zera as horas para comparar apenas os dias
+    today.setHours(0, 0, 0, 0);
 
-    // REGRA: Não pode ativar se a data for menor ou igual a hoje
     if (formData.status === 'active' && dateToSave <= today) {
-      alert("Para ativar a unidade, a data de expiração deve ser maior que a data atual.");
+      showToast("Para ativar a unidade, a data de expiração deve ser maior que a data atual.", "error");
       return;
     }
 
-    // REGRA: Pode desativar mesmo que a data seja futura (segue normal para o update)
     setIsSaving(true);
     try {
       const dataToUpdate: Partial<Company> = {
@@ -78,12 +70,12 @@ export function EditCompanyModal({ isOpen, onClose, company, onUpdate }: EditCom
         email: formData.email,
         licenseKey: formData.licenseKey,
         status: formData.status as "active" | "suspended",
-        expiresAt: dateToSave 
+        expiresAt: dateToSave
       };
       await onUpdate(company.id, dataToUpdate);
       onClose();
     } catch (err) {
-      alert("Erro ao atualizar dados.");
+      showToast("Erro ao atualizar dados.", "error");
     } finally {
       setIsSaving(false);
     }
@@ -105,7 +97,7 @@ export function EditCompanyModal({ isOpen, onClose, company, onUpdate }: EditCom
           <div className="space-y-4">
             <div className="space-y-2">
               <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Razão Social</label>
-              <input 
+              <input
                 required
                 value={formData.corporateName}
                 onChange={(e) => setFormData({...formData, corporateName: e.target.value})}
@@ -116,7 +108,7 @@ export function EditCompanyModal({ isOpen, onClose, company, onUpdate }: EditCom
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">CNPJ</label>
-                <input 
+                <input
                   required
                   value={formData.cnpj}
                   onChange={(e) => setFormData({...formData, cnpj: e.target.value})}
@@ -125,7 +117,7 @@ export function EditCompanyModal({ isOpen, onClose, company, onUpdate }: EditCom
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">E-mail</label>
-                <input 
+                <input
                   required
                   type="email"
                   value={formData.email}
@@ -138,11 +130,10 @@ export function EditCompanyModal({ isOpen, onClose, company, onUpdate }: EditCom
 
           <hr className="border-zinc-800 my-2" />
 
-          {/* Seção de Licença */}
           <div className="space-y-4 bg-zinc-950/50 p-4 rounded-xl border border-zinc-800/50">
             <div className="space-y-2">
               <label className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">Chave da Licença</label>
-              <input 
+              <input
                 value={formData.licenseKey}
                 onChange={(e) => setFormData({...formData, licenseKey: e.target.value.toUpperCase()})}
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-emerald-400 font-mono text-sm outline-none focus:ring-2 focus:ring-emerald-500/20"
@@ -151,7 +142,7 @@ export function EditCompanyModal({ isOpen, onClose, company, onUpdate }: EditCom
 
             <div className="space-y-2">
               <label className="text-[10px] font-bold text-rose-400 uppercase tracking-widest">Data de Expiração</label>
-              <input 
+              <input
                 type="date"
                 value={formData.expiresAt}
                 onChange={(e) => setFormData({...formData, expiresAt: e.target.value})}
@@ -162,7 +153,7 @@ export function EditCompanyModal({ isOpen, onClose, company, onUpdate }: EditCom
 
             <div className="space-y-2">
               <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Status da Unidade</label>
-              <select 
+              <select
                 value={formData.status}
                 onChange={(e) => setFormData({...formData, status: e.target.value as "active" | "suspended"})}
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-zinc-200 outline-none focus:ring-2 focus:ring-emerald-500/20"

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useParams, useNavigate } from "react-router";
 import { useClientDetails } from "../hooks/useClientDetails";
 import { useCompanies } from "../hooks/useCompanies";
+import { useToast } from "../contexts/ToastContext";
 
 import { PageHeader } from "../components/PageHeader";
 import { SectionCard } from "../components/SectionCard";
@@ -26,13 +27,12 @@ export default function ClientDetails() {
 
   const { clientName, loading: loadingClient } = useClientDetails(id);
   const { companies, loading: loadingCompanies, isSubmitting, addCompany, updateCompany } = useCompanies(id);
+  const { showToast } = useToast();
 
-  // Estados para o formulário
   const [cnpj, setCnpj]                   = useState("");
   const [corporateName, setCorporateName] = useState("");
   const [email, setEmail]                 = useState("");
 
-  // Máscara de CNPJ
   const handleCnpjChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setCnpj(
       e.target.value
@@ -53,11 +53,10 @@ export default function ClientDetails() {
       setCorporateName("");
       setEmail("");
     } catch (err) {
-      alert("Erro ao cadastrar unidade.");
+      showToast("Erro ao cadastrar unidade.", "error");
     }
   };
 
-  // Modal de edição
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [companyToEdit, setCompanyToEdit]     = useState<Company | null>(null);
 
@@ -173,12 +172,12 @@ export default function ClientDetails() {
                 </td>
 
                 <td className="px-6 py-4 text-right">
-                  <div className="flex items-center gap-4 justify-end">
+                  <div className="flex items-center gap-4">
                     {company.licenseKey && (
                       <button
                         onClick={() => {
                           navigator.clipboard.writeText(company.licenseKey!);
-                          alert("Chave copiada!");
+                          showToast("Chave copiada!", "success");
                         }}
                         className="text-zinc-500 hover:text-emerald-500 transition-colors cursor-pointer"
                         title="Copiar Chave"

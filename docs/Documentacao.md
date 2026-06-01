@@ -27,6 +27,7 @@ O **LICENSE.sys** é um dashboard administrativo para gestão de licenças de so
 ```
 src/
 ├── components/       # Componentes reutilizáveis de UI
+├── contexts/         # Contextos React globais (estado compartilhado entre páginas)
 ├── hooks/            # Lógica de dados e comunicação com o Firebase
 ├── layouts/          # Estruturas de página (RootLayout com Sidebar e Outlet)
 ├── lib/              # Configurações de terceiros (firebase_config.ts)
@@ -303,7 +304,52 @@ import { EmptyState } from "../components/EmptyState";
 
 ---
 
-## 5. Hooks
+## 5. Contexts
+
+Todos os contexts ficam em `src/contexts/`. Gerenciam estado global da aplicação compartilhado entre páginas e componentes, sem passar props manualmente por toda a árvore.
+
+---
+
+### `ToastContext`
+
+Sistema de notificações flutuantes (toasts) disponível globalmente em toda a aplicação. Renderiza os toasts via `createPortal` diretamente no `document.body`, garantindo que fiquem sempre visíveis independente do scroll ou do layout da página.
+
+**Exporta**
+
+| Exportação | Tipo | Descrição |
+|---|---|---|
+| `ToastProvider` | `React.FC` | Provider que deve envolver o layout raiz |
+| `useToast` | `hook` | Hook para disparar toasts em qualquer componente |
+
+**`useToast` — Retorna**
+
+| Campo | Tipo | Descrição |
+|---|---|---|
+| `showToast` | `(message: string, type?: 'error' \| 'success') => void` | Exibe um toast. O tipo padrão é `'error'` |
+
+**Exemplo de uso**
+
+```tsx
+import { useToast } from "../contexts/ToastContext";
+
+const { showToast } = useToast();
+
+// Toast de erro
+showToast("Erro ao salvar os dados.", "error");
+
+// Toast de sucesso
+showToast("Chave copiada!", "success");
+```
+
+**Configuração:** O `ToastProvider` já está configurado no `RootLayout.tsx`. Não é necessário adicioná-lo em nenhum outro lugar.
+
+**Auto-dismiss:** O toast some automaticamente após 4 segundos. O usuário também pode fechá-lo manualmente clicando no `×`.
+
+**Quando usar:** Sempre que precisar exibir feedback de erro ou sucesso ao usuário. Nunca usar `alert()` ou `<div>` de erro inline nas páginas.
+
+---
+
+## 6. Hooks
 
 Todos os hooks ficam em `src/hooks/`. Centralizam a comunicação com o Firebase e expõem estado e funções para as páginas.
 
@@ -412,7 +458,7 @@ Gerencia todas as licenças do sistema com suporte a atualizações em lote (sin
 
 ---
 
-## 6. Variáveis de Ambiente
+## 7. Variáveis de Ambiente
 
 O projeto usa variáveis de ambiente para proteger as credenciais do Firebase. Crie um arquivo `.env` na raiz do projeto (mesmo nível do `index.html`).
 
@@ -432,7 +478,7 @@ O projeto usa variáveis de ambiente para proteger as credenciais do Firebase. C
 
 ---
 
-## 7. Regras de Negócio
+## 8. Regras de Negócio
 
 ### Expiração Automática de Licenças
 
@@ -455,7 +501,7 @@ Todas as datas são criadas manualmente via `new Date(year, month - 1, day)` par
 
 ---
 
-## 8. Seed de Dados
+## 9. Seed de Dados
 
 O projeto possui uma ferramenta para limpar e repovoar o banco com dados simulados. Útil para demonstrações e testes.
 
@@ -501,7 +547,7 @@ Os dados são gerados relativos à data atual, garantindo que os alertas do Dash
 
 ---
 
-## 9. Deploy
+## 10. Deploy
 
 O projeto está hospedado no **Firebase Hosting** e a URL de produção é:
 

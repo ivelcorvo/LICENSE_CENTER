@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { useCustomers } from "../hooks/useCustomers";
+import { useToast } from "../contexts/ToastContext";
 import { PageHeader } from "../components/PageHeader";
 import { SectionCard } from "../components/SectionCard";
 import { TableShell } from "../components/TableShell";
@@ -10,6 +11,7 @@ import { EmptyState } from "../components/EmptyState";
 export default function Clients() {
   const [nickname, setNickname] = useState("");
   const { customers, loading, isSubmitting, createCustomer } = useCustomers();
+  const { showToast } = useToast();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -18,7 +20,7 @@ export default function Clients() {
       await createCustomer(nickname);
       setNickname("");
     } catch (err) {
-      alert("Erro ao cadastrar o grupo.");
+      showToast("Erro ao cadastrar o grupo.", "error");
     }
   };
 
