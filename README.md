@@ -1,4 +1,4 @@
-# LICENSE.sys
+# LICENSE CENTER
 
 Dashboard administrativo para gestão de licenças de software em grupos empresariais.
 
